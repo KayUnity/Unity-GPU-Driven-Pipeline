@@ -1,0 +1,270 @@
+﻿#if UNITY_EDITOR
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEditor;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using MPipeline;
+using Unity.Mathematics;
+using System;
+using static Unity.Mathematics.math;
+public class TextureCombiner : ScriptableWizard
+{
+    public string path = "Assets/";
+    public string fileName = "xxx";
+    public Texture2D[] textures;
+    [MenuItem("MPipeline/Texture Combiner")]
+    private static void CreateWizard()
+    {
+        DisplayWizard<TextureCombiner>("Texture Combiner", "Combine");
+    }
+    private void OnWizardCreate()
+    {
+        Texture2DArray arr = new Texture2DArray(textures[0].width, textures[0].height, textures.Length, textures[0].format, false, true);
+        for(int i = 0; i < textures.Length; ++i)
+        {
+            arr.SetPixels(textures[i].GetPixels(), i);
+        }
+        arr.Apply();
+        AssetDatabase.CreateAsset(arr, path + fileName + ".asset");
+    }
+}
+    public class CombineMesh : ScriptableWizard
+{
+    [MenuItem("MPipeline/Combine Mesh")]
+    private static void CreateWizard()
+    {
+        DisplayWizard<CombineMesh>("Scene Tools", "Create");
+    }
+    public string combineMeshPath = "Assets/";
+    private static Mesh CombineAllMesh(List<MeshFilter> meshes)
+    {
+        List<Vector3> verts = new List<Vector3>(1000);
+        List<Vector3> norms = new List<Vector3>(1000);
+        List<Vector4> tans = new List<Vector4>(1000);
+        List<Vector2> uv0s = new List<Vector2>(1000);
+        List<int> tris = new List<int>(1000);
+        float4x4 worldToLocal = meshes[0].transform.worldToLocalMatrix;
+
+        foreach (var i in meshes)
+        {
+            float4x4 localToWorld = mul(worldToLocal, i.transform.localToWorldMatrix);
+            float3x3 localToWorldRot = float3x3(localToWorld.c0.xyz, localToWorld.c1.xyz, localToWorld.c2.xyz);
+            Vector3[] vertices = i.sharedMesh.vertices;
+            for (int j = 0; j < vertices.Length; ++j)
+            {
+                vertices[j] = mul(localToWorld, float4(vertices[j], 1)).xyz;
+            }
+            Vector3[] normals = i.sharedMesh.normals;
+            for (int j = 0; j < vertices.Length; ++j)
+            {
+                normals[j] = mul(localToWorldRot, normals[j]);
+            }
+            Vector4[] tangents = i.sharedMesh.tangents;
+            for (int j = 0; j < vertices.Length; ++j)
+            {
+                float3 tan = (Vector3)tangents[j];
+                float tanW = tangents[j].w;
+                tangents[j] = (Vector3)mul(localToWorldRot, tan);
+                tangents[j].w = tanW;
+            }
+            Vector2[] uv0 = i.sharedMesh.uv;
+            int[] triangles = i.sharedMesh.triangles;
+            for (int j = 0; j < triangles.Length; ++j)
+            {
+                triangles[j] += verts.Count;
+            }
+            tris.AddRange(triangles);
+            verts.AddRange(vertices);
+            norms.AddRange(normals.Length == vertices.Length ? normals : new Vector3[vertices.Length]);
+            tans.AddRange(tangents.Length == vertices.Length ? tangents : new Vector4[vertices.Length]);
+            uv0s.AddRange(uv0.Length == vertices.Length ? uv0 : new Vector2[vertices.Length]);
+        }
+        Mesh newMesh = new Mesh();
+        newMesh.SetVertices(verts);
+        newMesh.SetUVs(0, uv0s);
+        newMesh.SetNormals(norms);
+        newMesh.SetTangents(tans);
+        newMesh.SetTriangles(tris, 0);
+        Unwrapping.GenerateSecondaryUVSet(newMesh);
+        return newMesh;
+    }
+    private void OnWizardCreate()
+    {
+        Transform[] transes = Selection.GetTransforms(SelectionMode.Unfiltered);
+        List<MeshFilter> renderers = new List<MeshFilter>();
+        foreach (var i in transes)
+        {
+            renderers.AddRange(i.GetComponentsInChildren<MeshFilter>());
+        }
+        if (renderers.Count == 0) return;
+        Mesh combinedMesh = CombineAllMesh(renderers);
+        AssetDatabase.CreateAsset(combinedMesh, combineMeshPath + combinedMesh.GetInstanceID() + ".asset");
+        renderers[0].sharedMesh = combinedMesh;
+        for (int i = 1; i < renderers.Count; ++i)
+        {
+            DestroyImmediate(renderers[i].gameObject);
+        }
+    }
+}
+public class TransformShader : EditorWindow
+{
+    [MenuItem("MPipeline/Transform Shader")]
+    private static void CreateWizard()
+    {
+        TransformShader window = (TransformShader)GetWindow(typeof(TransformShader));
+        window.Show();
+    }
+    public enum LightingModelType
+    {
+        Unlit = 0, DefaultLit = 1, SkinLit = 2, ClothLit = 3, ClearCoat = 4
+    }
+    public static void SetMat(Material targetMat)
+    {
+        bool useMotionVector = targetMat.GetShaderPassEnabled("MotionVector");
+        targetMat.SetShaderPassEnabled("MotionVector", useMotionVector);
+        bool targetMatEnabled = targetMat.IsKeywordEnabled("CUT_OFF");
+        bool useRainning = targetMat.IsKeywordEnabled("USE_RANNING");
+        LightingModelType currentType = (LightingModelType)targetMat.GetInt("_LightingModel");
+        targetMat.SetInt("_LightingModel", (int)currentType);
+        if (currentType != LightingModelType.Unlit)
+        {
+            targetMat.EnableKeyword("LIT_ENABLE");
+        }
+        else
+        {
+            targetMat.DisableKeyword("LIT_ENABLE");
+        }
+        if (useRainning)
+        {
+            targetMat.EnableKeyword("USE_RANNING");
+        }
+        else
+        {
+            targetMat.DisableKeyword("USE_RANNING");
+        }
+        switch (currentType)
+        {
+            case LightingModelType.DefaultLit:
+                targetMat.EnableKeyword("DEFAULT_LIT");
+                targetMat.DisableKeyword("SKIN_LIT");
+                targetMat.DisableKeyword("CLOTH_LIT");
+                targetMat.DisableKeyword("CLEARCOAT_LIT");
+                break;
+            case LightingModelType.SkinLit:
+                targetMat.DisableKeyword("DEFAULT_LIT");
+                targetMat.EnableKeyword("SKIN_LIT");
+                targetMat.DisableKeyword("CLOTH_LIT");
+                targetMat.DisableKeyword("CLEARCOAT_LIT");
+                break;
+            case LightingModelType.ClothLit:
+                targetMat.DisableKeyword("DEFAULT_LIT");
+                targetMat.DisableKeyword("SKIN_LIT");
+                targetMat.EnableKeyword("CLOTH_LIT");
+                targetMat.DisableKeyword("CLEARCOAT_LIT");
+                break;
+            case LightingModelType.ClearCoat:
+                targetMat.DisableKeyword("DEFAULT_LIT");
+                targetMat.DisableKeyword("SKIN_LIT");
+                targetMat.DisableKeyword("CLOTH_LIT");
+                targetMat.EnableKeyword("CLEARCOAT_LIT");
+                break;
+            default:
+                targetMat.DisableKeyword("DEFAULT_LIT");
+                targetMat.DisableKeyword("SKIN_LIT");
+                targetMat.DisableKeyword("CLOTH_LIT");
+                targetMat.DisableKeyword("CLEARCOAT_LIT");
+                break;
+        }
+        targetMat.SetInt("_ZTest", targetMatEnabled ? (int)UnityEngine.Rendering.CompareFunction.Equal : (int)UnityEngine.Rendering.CompareFunction.Less);
+        targetMat.SetInt("_ZWrite", targetMatEnabled ? 0 : 1);
+        if (!targetMatEnabled)
+        {
+            targetMat.DisableKeyword("CUT_OFF");
+            if (targetMat.renderQueue > 2450)
+                targetMat.renderQueue = 2000;
+        }
+        else
+        {
+
+            targetMat.EnableKeyword("CUT_OFF");
+            if (targetMat.renderQueue < 2451)
+                targetMat.renderQueue = 2451;
+        }
+        if (targetMat.GetTexture("_DetailAlbedo") == null && targetMat.GetTexture("_DetailNormal") == null)
+        {
+            targetMat.DisableKeyword("DETAIL_ON");
+        }
+        else
+        {
+            targetMat.EnableKeyword("DETAIL_ON");
+        }
+    }
+    private void Execute(Action<Material, MeshRenderer> func)
+    {
+        Transform[] trans = Selection.GetTransforms(SelectionMode.Unfiltered);
+        List<MeshRenderer> lights = new List<MeshRenderer>();
+        foreach (var i in trans)
+            lights.AddRange(i.GetComponentsInChildren<MeshRenderer>());
+        Dictionary<Material, MeshRenderer> allMats = new Dictionary<Material, MeshRenderer>();
+        foreach (var i in lights)
+        {
+            var mats = i.sharedMaterials;
+            foreach (var j in mats)
+            {
+                if (!j) continue;
+                if (allMats.ContainsKey(j))
+                {
+                    if (i.lightmapIndex >= 0) allMats[j] = i;
+                }
+                else
+                    allMats[j] = i;
+            }
+        }
+
+        foreach (var i in allMats.Keys)
+        {
+            func(i, allMats[i]);
+        }
+    }
+    private void OnGUI()
+    {
+        Shader defaultShader = Shader.Find("ShouShouPBR");
+        Shader srpLightmapShader = Shader.Find("Maxwell/StandardLit(Lightmap)");
+        Shader srpNoLightmapShader = Shader.Find("Maxwell/StandardLit(No Lightmap)");
+        if (GUILayout.Button("To Built-in Pipeline"))
+        {
+            Execute((mat, r) =>
+            {
+                if (mat.shader == srpLightmapShader || mat.shader == srpNoLightmapShader)
+                    mat.shader = defaultShader;
+            });
+        }
+        if (GUILayout.Button("To MPipeline"))
+        {
+            Execute((mat, rend) =>
+            {
+                if (mat.shader == defaultShader)
+                {
+                    mat.shader = rend.lightmapIndex >= 0 ? srpLightmapShader : srpNoLightmapShader;
+                    SetMat(mat);
+                    mat.SetShaderPassEnabled("MotionVector", false);
+                }
+            });
+        }
+        if (GUILayout.Button("Check Lightmap"))
+        {
+            Execute((mat, rend) =>
+            {
+                if (mat.shader == srpNoLightmapShader)
+                {
+                    if (rend.lightmapIndex >= 0)
+                        mat.shader = srpLightmapShader;
+                    SetMat(mat);
+                }
+            });
+        }
+    }
+}
+#endif

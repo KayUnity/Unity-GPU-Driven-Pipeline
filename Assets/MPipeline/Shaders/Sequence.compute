@@ -1,0 +1,33 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel First
+groupshared uint sharedArray[1024];
+RWStructuredBuffer<uint> _Datas;
+uint _Count;
+
+[numthreads(1024, 1, 1)]
+void First (uint index : SV_DispatchThreadID)
+{
+    uint id = index * 2;
+    if(id > _Count) return;
+    sharedArray[id] = _Datas[id];
+    sharedArray[id + 1] = _Datas[id + 1];
+    int offset = 0;
+    [loop]
+    for(uint i = 0; i < _Count; ++i)
+    {
+            uint left = sharedArray[id + offset];
+            uint right = sharedArray[id + 1 + offset];
+            if(left > right)
+            {
+                uint temp = left;
+                left=  right;
+                right = temp;
+            }
+            sharedArray[id + offset] = left;
+            sharedArray[id + 1 + offset] = right;
+        offset = 1 - offset;
+        GroupMemoryBarrierWithGroupSync();
+    }
+    _Datas[id] = sharedArray[id];
+    _Datas[id + 1] = sharedArray[id + 1];
+}

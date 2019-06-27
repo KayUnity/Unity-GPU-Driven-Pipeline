@@ -1,0 +1,16 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ReadPixel
+#include "UnityCG.cginc"
+RWStructuredBuffer<float4> _TextureDatas;
+Texture2D<float4> _TargetTexture;
+int _Width;
+int _Height;
+[numthreads(8,8,1)]
+void ReadPixel (uint2 id : SV_DispatchThreadID)
+{
+    float4 col = _TargetTexture[id];
+    #if UNITY_UV_STARTS_AT_TOP
+    id.y = _Height - id.y - 1;
+    #endif
+    _TextureDatas[id.x + id.y * _Width] = col;
+}
