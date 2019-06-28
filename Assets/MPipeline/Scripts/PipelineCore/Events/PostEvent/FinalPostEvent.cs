@@ -21,8 +21,8 @@ namespace MPipeline
         public bool enableInEditor = true;
         private List<PostEffect> allPostEffects;
         private PostProcessRenderContext postContext;
-        public CyberColor cyberColor;
-        
+        [SerializeField]
+        private CyberSet cyberGlitch;
         public Shader debug;
         private Material debugMat;
 
@@ -52,13 +52,12 @@ namespace MPipeline
             postContext.logHistogram = new LogHistogram();
             postContext.uberSheet = new PropertySheet(new Material(resources.shaders.uber));
             Shader.SetGlobalFloat("_RenderViewportScaleFactor", 1);
-            cyberColor.Init();
-
+            cyberGlitch.Init(res);
         }
 
         public override bool CheckProperty()
         {
-            return postContext != null && postContext.uberSheet.material != null && cyberColor.Check();
+            return postContext != null && postContext.uberSheet.material != null && cyberGlitch.Check();
         }
 
         protected override void Dispose()
@@ -67,10 +66,9 @@ namespace MPipeline
             {
                 i.renderer.Release();
             }
-            cyberColor.Dispose();
             postContext.uberSheet.Release();
             postContext.logHistogram.Release();
-            
+            cyberGlitch.Dispose();
         }
         private struct PtrEqual : IFunction<ulong ,ulong, bool>
         {
@@ -108,6 +106,7 @@ namespace MPipeline
             postContext.source = cam.targets.renderTargetIdentifier;
             postContext.destination = cam.targets.backupIdentifier;
             postContext.logHistogram.Generate(postContext);
+            cyberGlitch.Render(data.buffer, ref cam.targets);
             foreach (var i in allPostEffects)
             {
                 ulong settingsPtr;
@@ -125,7 +124,6 @@ namespace MPipeline
                 }
             };
             allSettings.Dispose();
-            cyberColor.FrameUpdate(data.buffer);
        //     data.buffer.BlitSRT(cam.cameraTarget, debugMat, 0);
             data.buffer.BlitSRT(cam.targets.renderTargetIdentifier, cam.cameraTarget, postContext.uberSheet.material, 0, postContext.uberSheet.properties);
             if (postContext.bloomBufferNameID > -1) data.buffer.ReleaseTemporaryRT(postContext.bloomBufferNameID);

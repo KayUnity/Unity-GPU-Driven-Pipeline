@@ -16,16 +16,9 @@ MonoBehaviour:
   resources: {fileID: 11400000, guid: d82512f9c8e5d4a4d938b575d47f88d4, type: 2}
   enabledPost: 1
   enableInEditor: 0
-  cyberColor:
-    Enabled: 0
-    _Red: -0.932
-    _Orange: 0.289
-    _Yellow: 0.461
-    _Green: 0
-    _Cyan: 0
-    _Blue: -0.182
-    _Purple: 0
-    _Magenta: 0.443
-    _Pow_S: 1.35
-    _Value: 1
+  cyberGlitch:
+    enabled: 1
+    scanLineJitter: 0.1
+    horizontalShake: 0.1
+    colorDrift: 0.51
   debug: {fileID: 4800000, guid: c28b28b8ae9887645b7ea83498201e85, type: 3}

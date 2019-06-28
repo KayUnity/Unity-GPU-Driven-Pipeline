@@ -38,8 +38,7 @@ namespace MPipeline
         public Shader sssShader;
         public Shader bakePreIntShader;
         public Shader rapidBlurShader;
-        public Mesh occluderMesh;
-        public Mesh sphereMesh;
+        public Shader cyberGlitchShader;
     }
 
     public unsafe static class AllEvents

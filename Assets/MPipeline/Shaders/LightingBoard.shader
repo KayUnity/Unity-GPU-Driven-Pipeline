@@ -14,6 +14,8 @@
         Tags { "RenderType"="Opaque" "Queue" = "AlphaTest"}
         LOD 100
         CGINCLUDE
+// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
+#pragma exclude_renderers gles
         #pragma multi_compile __ FIRST_TEX_USE_UV1
         #pragma multi_compile __ SECOND_TEX_USE_UV1
         #pragma multi_compile __ BLEND_ADD
@@ -21,7 +23,8 @@
         #include "UnityCG.cginc"
         float4x4 _LastVp;
         float4x4 _NonJitterVP;
-        float4x4 _LastFrameModel;
+        StructuredBuffer<float3x4> _LastFrameModel;
+        uint _OffsetIndex;
         cbuffer UnityPerMaterial
         {
             float4 _MainTex_ST;
@@ -145,7 +148,7 @@ void frag_surf (v2f_surf i,
 				o.vertex = UnityObjectToClipPos(v.vertex);
 			  float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
 				o.nonJitterScreenPos = ComputeScreenPos(mul(_NonJitterVP, worldPos)).xyw;
-				float4 lastWorldPos =  mul(_LastFrameModel, v.vertex);
+				float4 lastWorldPos =  float4(mul(_LastFrameModel[_OffsetIndex], v.vertex), 1);
             o.lastScreenPos = ComputeScreenPos(mul(_LastVp, lastWorldPos)).xyw;
             #if CUT_OFF
 			o.texcoord = TRANSFORM_TEX(v.texcoord, _CutOffTex);

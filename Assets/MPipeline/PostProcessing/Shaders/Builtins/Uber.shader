@@ -12,14 +12,11 @@ Shader "Hidden/PostProcessing/Uber"
 #pragma multi_compile __ GRAIN
 #pragma multi_compile __ FINALPASS
 #pragma multi_compile __ RENDERING_TEXTURE
-#pragma multi_compile __ ENABLE_CYBERCOLOR
-
 #include "../StdLib.hlsl"
 #include "../Colors.hlsl"
 #include "../Sampling.hlsl"
 #include "Distortion.hlsl"
 #include "Dithering.hlsl"
-#include "Cyber.cginc"
 
 #define MAX_CHROMATIC_SAMPLES 16
 
@@ -62,6 +59,8 @@ Shader "Hidden/PostProcessing/Uber"
 
 	// Misc
 	float _LumaInAlpha;
+
+
 	struct v2f
 	{
 		float4 vertex : SV_POSITION;
@@ -216,9 +215,6 @@ Shader "Hidden/PostProcessing/Uber"
 						#endif
 
 						float4 output = color;
-						#ifdef ENABLE_CYBERCOLOR
-						output.xyz = GetCyberColor(output.xyz);
-						#endif
 						#if FINALPASS
 						{
 							#if UNITY_COLORSPACE_GAMMA
