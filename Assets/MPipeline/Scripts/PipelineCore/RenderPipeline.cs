@@ -111,7 +111,8 @@ namespace MPipeline
             }
             return null;
         }
-
+        private ComputeBuffer motionVectorMatricesBuffer;
+        private NativeArray<float3x4> allMatrices;
         public RenderPipeline(PipelineResources resources)
         {
             eventsGuideBook = new NativeDictionary<UIntPtr, int, PtrEqual>(resources.availiableEvents.Length, Allocator.Persistent, new PtrEqual());
@@ -146,7 +147,7 @@ namespace MPipeline
                 m_afterFrameBuffer.Dispose();
                 m_afterFrameBuffer = null;
             }
-            if(m_beforeFrameBuffer != null)
+            if (m_beforeFrameBuffer != null)
             {
                 m_beforeFrameBuffer.Dispose();
                 m_beforeFrameBuffer = null;
@@ -184,6 +185,8 @@ namespace MPipeline
                     cam.allDatas.Clear();
                 }
             }
+            if (motionVectorMatricesBuffer != null) motionVectorMatricesBuffer.Dispose();
+            allMatrices.Dispose();
         }
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
@@ -194,6 +197,20 @@ namespace MPipeline
             SceneController.SetState();
             data.context = renderContext;
             data.resources = resources;
+            if (!allMatrices.IsCreated) allMatrices = new NativeArray<float3x4>(50, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            if (motionVectorMatricesBuffer == null || !motionVectorMatricesBuffer.IsValid()) motionVectorMatricesBuffer = new ComputeBuffer(50, sizeof(float3x4));
+            else if (motionVectorMatricesBuffer.count < MotionVectorDrawer.AllDrawers.Count)
+            {
+                int len = (int)(motionVectorMatricesBuffer.count * 1.2f);
+                motionVectorMatricesBuffer.Dispose();
+                motionVectorMatricesBuffer = new ComputeBuffer(Mathf.Max(len, MotionVectorDrawer.AllDrawers.Count), sizeof(float3x4));
+                var newArr = new NativeArray<float3x4>(motionVectorMatricesBuffer.count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+                UnsafeUtility.MemCpy(newArr.GetUnsafePtr(), allMatrices.GetUnsafePtr(), allMatrices.Length * sizeof(float3x4));
+                allMatrices.Dispose();
+                allMatrices = newArr;
+            }
+            motionVectorMatricesBuffer.SetData(allMatrices, 0, 0, MotionVectorDrawer.AllDrawers.Count);
+            data.buffer.SetGlobalBuffer(ShaderIDs._LastFrameModel, motionVectorMatricesBuffer);
 #if UNITY_EDITOR
             int tempID = Shader.PropertyToID("_TempRT");
             foreach (var pair in bakeList)
@@ -235,7 +252,7 @@ namespace MPipeline
                 {
                     i.PrepareJob(resources);
                 }
-                foreach(var i in JobProcessEvent.allEvents)
+                foreach (var i in JobProcessEvent.allEvents)
                 {
                     i.PrepareJob();
                 }
@@ -249,7 +266,7 @@ namespace MPipeline
                     i.FinishJob();
                 }
             }
-            if(useBeforeFrameBuffer)
+            if (useBeforeFrameBuffer)
             {
                 renderContext.ExecuteCommandBuffer(m_beforeFrameBuffer);
                 m_beforeFrameBuffer.Clear();
@@ -300,6 +317,13 @@ namespace MPipeline
             if (needSubmit)
             {
                 renderContext.Submit();
+            }
+            float3x4* lastMatPtrs = allMatrices.Ptr();
+            var lst = MotionVectorDrawer.AllDrawers;
+            for(int i = 0; i < lst.Count; ++i)
+            {
+                Matrix4x4 localToWorld = lst[i].transform.localToWorldMatrix;
+                lastMatPtrs[i] = new float3x4((Vector3)localToWorld.GetColumn(0), (Vector3)localToWorld.GetColumn(1),(Vector3)localToWorld.GetColumn(2),(Vector3)localToWorld.GetColumn(3));
             }
         }
 

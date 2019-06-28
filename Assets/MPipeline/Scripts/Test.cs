@@ -15,8 +15,14 @@ using Random = UnityEngine.Random;
 #if UNITY_EDITOR
 public unsafe class Test : MonoBehaviour
 {
+    private float3 initPos;
+    private void Start()
+    {
+        initPos = transform.position;
+    }
     private void Update()
     {
+        transform.position = initPos + float3(0, sin(Time.time * 10), 0);
     }
 }
 #endif

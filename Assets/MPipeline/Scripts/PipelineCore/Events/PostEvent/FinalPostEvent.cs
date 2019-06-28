@@ -81,6 +81,7 @@ namespace MPipeline
         }
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)
         {
+
             if (!enabledPost || !cam.postProfile)
             {
                 data.buffer.Blit(cam.targets.renderTargetIdentifier, cam.cameraTarget);

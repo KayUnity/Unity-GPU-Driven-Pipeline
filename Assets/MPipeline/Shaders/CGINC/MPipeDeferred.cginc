@@ -1,4 +1,6 @@
 #ifndef __MPIPEDEFERRED_INCLUDE__
+// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
+#pragma exclude_renderers gles
 #define __MPIPEDEFERRED_INCLUDE__
 
 #define UNITY_PASS_DEFERRED
@@ -60,8 +62,8 @@ struct appdata
 	#endif
 };
 
-float4x4 _LastFrameModel;
-
+StructuredBuffer<float3x4> _LastFrameModel;
+uint _OffsetIndex;
 v2f_surf vert_surf (appdata v) 
 {
   	v2f_surf o;
@@ -200,7 +202,7 @@ void frag_surf (v2f_surf IN,
 				o.vertex = UnityObjectToClipPos(v.vertex);
 			  float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
 				o.nonJitterScreenPos = ComputeScreenPos(mul(_NonJitterVP, worldPos)).xyw;
-				float4 lastWorldPos =  mul(_LastFrameModel, v.vertex);
+				float4 lastWorldPos = float4(mul(_LastFrameModel[_OffsetIndex], v.vertex), 1);
         o.lastScreenPos = ComputeScreenPos(mul(_LastVp, lastWorldPos)).xyw;
 #if CUT_OFF
 				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
