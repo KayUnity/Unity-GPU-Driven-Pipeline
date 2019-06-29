@@ -54,7 +54,7 @@
                 float jitter = dot(MNoise(float2(i.uv.y, _Time.x)), 1) - 1;
                 jitter *= scanLineJitter;
                 jitter *= scanLineJitter;
-                float shake = nrand(frac(_Time.x), 2) * horizontalShake;
+                float shake = nrand(_Time.x, 2) * horizontalShake;
                 float drift = sin(colorDrift.y) * colorDrift.x;
                 float4 src1 = tex2D(_MainTex, frac(float2(i.uv.x + jitter + shake, i.uv.y)));
                 float4 src2 = tex2D(_MainTex, frac(float2(i.uv.x + jitter + shake + drift, i.uv.y)));

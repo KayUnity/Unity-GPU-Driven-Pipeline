@@ -54,7 +54,7 @@ namespace MPipeline
         {
             NativeArray<CyberSetData> data = new NativeArray<CyberSetData>(1, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             CyberSetData* value = data.Ptr();
-            time += Time.deltaTime * 606.11f;
+            time += Time.deltaTime * 60.611f;
             time = Mathf.Repeat(time, Mathf.PI * 2);
             value->scanLineJitter = scanLineJitter;
             value->horizontalShake = horizontalShake * 0.2f;

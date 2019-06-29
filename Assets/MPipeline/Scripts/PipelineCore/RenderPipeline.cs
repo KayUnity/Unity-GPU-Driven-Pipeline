@@ -197,8 +197,9 @@ namespace MPipeline
             SceneController.SetState();
             data.context = renderContext;
             data.resources = resources;
-            if (!allMatrices.IsCreated) allMatrices = new NativeArray<float3x4>(50, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            if (motionVectorMatricesBuffer == null || !motionVectorMatricesBuffer.IsValid()) motionVectorMatricesBuffer = new ComputeBuffer(50, sizeof(float3x4));
+            const int INIT_MOTIONVECTOROBJ_COUNT = 50;
+            if (!allMatrices.IsCreated) allMatrices = new NativeArray<float3x4>(INIT_MOTIONVECTOROBJ_COUNT, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            if (motionVectorMatricesBuffer == null || !motionVectorMatricesBuffer.IsValid()) motionVectorMatricesBuffer = new ComputeBuffer(INIT_MOTIONVECTOROBJ_COUNT, sizeof(float3x4));
             else if (motionVectorMatricesBuffer.count < MotionVectorDrawer.AllDrawers.Count)
             {
                 int len = (int)(motionVectorMatricesBuffer.count * 1.2f);
@@ -206,6 +207,11 @@ namespace MPipeline
                 motionVectorMatricesBuffer = new ComputeBuffer(Mathf.Max(len, MotionVectorDrawer.AllDrawers.Count), sizeof(float3x4));
                 var newArr = new NativeArray<float3x4>(motionVectorMatricesBuffer.count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
                 UnsafeUtility.MemCpy(newArr.GetUnsafePtr(), allMatrices.GetUnsafePtr(), allMatrices.Length * sizeof(float3x4));
+                for(int i = allMatrices.Length; i < MotionVectorDrawer.AllDrawers.Count; ++i)
+                {
+                    float4x4 mat = MotionVectorDrawer.AllDrawers[i].transform.localToWorldMatrix;
+                    newArr[i] = new float3x4(mat.c0.xyz, mat.c1.xyz, mat.c2.xyz, mat.c3.xyz);
+                }
                 allMatrices.Dispose();
                 allMatrices = newArr;
             }

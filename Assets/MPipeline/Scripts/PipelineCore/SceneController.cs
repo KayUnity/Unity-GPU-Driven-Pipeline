@@ -209,7 +209,7 @@ namespace MPipeline
                 layerMask = mask,
                 renderingLayerMask = 1
             };
-            DrawingSettings dsettings = new DrawingSettings(new ShaderTagId("Shadow"), new SortingSettings { criteria = SortingCriteria.None })
+            DrawingSettings dsettings = new DrawingSettings(new ShaderTagId("Shadow"), new SortingSettings { criteria = SortingCriteria.QuantizedFrontToBack })
             {
                 perObjectData = UnityEngine.Rendering.PerObjectData.None,
                 overrideMaterial = opaqueOverride,
@@ -282,7 +282,7 @@ namespace MPipeline
                     renderingLayerMask = 1       
                 };
                 SortingSettings sorting = new SortingSettings(SunLight.shadowCam);
-                sorting.criteria = SortingCriteria.CommonOpaque;
+                sorting.criteria = SortingCriteria.QuantizedFrontToBack;
                 DrawingSettings dsettings = new DrawingSettings(new ShaderTagId("Shadow"), sorting)
                 {
                     perObjectData = UnityEngine.Rendering.PerObjectData.None,

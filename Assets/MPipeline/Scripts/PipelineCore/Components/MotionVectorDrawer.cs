@@ -19,6 +19,7 @@ public class MotionVectorDrawer : MonoBehaviour
         lastLocalToWorld = transform.localToWorldMatrix;
         index = allDrawers.Count;
         allDrawers.Add(this);
+        rend.GetPropertyBlock(block);
         block.SetInt(ShaderIDs._OffsetIndex, index);
         rend.SetPropertyBlock(block);
     }
@@ -26,8 +27,12 @@ public class MotionVectorDrawer : MonoBehaviour
     private void OnDisable()
     {
         if (rend) rend.SetPropertyBlock(null);
-        allDrawers[index] = allDrawers[allDrawers.Count - 1];
-        allDrawers[index].index = index;
+        var lastOne = allDrawers[allDrawers.Count - 1];
+        allDrawers[index] = lastOne;
+        lastOne.index = index;
+        lastOne.rend.GetPropertyBlock(block);
+        block.SetInt(ShaderIDs._OffsetIndex, index);
+        lastOne.rend.SetPropertyBlock(block);
         allDrawers.RemoveAt(allDrawers.Count - 1);
     }
 }

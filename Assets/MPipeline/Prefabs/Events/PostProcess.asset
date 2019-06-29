@@ -17,8 +17,8 @@ MonoBehaviour:
   enabledPost: 1
   enableInEditor: 0
   cyberGlitch:
-    enabled: 1
+    enabled: 0
     scanLineJitter: 0.1
     horizontalShake: 0.1
-    colorDrift: 0.51
+    colorDrift: 0.1
   debug: {fileID: 4800000, guid: c28b28b8ae9887645b7ea83498201e85, type: 3}
