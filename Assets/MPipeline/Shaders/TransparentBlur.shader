@@ -72,7 +72,6 @@ float4 _GrabTexture_TexelSize;
 		float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
 		o.pos = mul(_NonJitterTextureVP, worldPos);
 		  o.screenUV = ComputeScreenPos(o.pos).xyw;
-		  worldPos /= worldPos.w;
 		  o.worldPos = worldPos.xyz;
 		  o.viewNormal = mul((float3x3)UNITY_MATRIX_IT_MV, v.normal).xyz;
 		o.worldNormal.xyz = mul((float3x3)unity_ObjectToWorld, v.normal).xyz;

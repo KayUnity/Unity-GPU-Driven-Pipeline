@@ -39,6 +39,7 @@ namespace MPipeline
         public static PipelineBaseBuffer baseBuffer { get; private set; }
         private static ClusterMatResources clusterResources;
         private static List<SceneStreaming> allScenes;
+
         public static NativeList<ulong> addList;
         private static Dictionary<int, ComputeBuffer> allTempBuffers = new Dictionary<int, ComputeBuffer>(11);
         public static void SetState()
@@ -146,7 +147,7 @@ namespace MPipeline
                     //    behavior.StartCoroutine(str.Delete());
                     else if (str.state == SceneStreaming.State.Unloaded)
                         str.GenerateSync();
-                        //behavior.StartCoroutine(str.Generate()); 
+                    //behavior.StartCoroutine(str.Generate()); 
                 }
             }
 
@@ -162,7 +163,7 @@ namespace MPipeline
             data.ExecuteCommandBuffer();
             data.context.DrawRenderers(cullResults, ref drawSettings, ref filterSettings);
         }
-        public static void DrawSpotLight(MLight mlight, int mask, ComputeShader cullingShader, ref PipelineCommandData data, Camera currentCam, ref SpotLight spotLights, ref RenderSpotShadowCommand spotcommand, bool inverseRender, Material opaqueOverride, NativeList<int> culledResult)
+        public static void DrawSpotLight(MLight mlight, int mask, ComputeShader cullingShader, ref PipelineCommandData data, Camera currentCam, ref SpotLight spotLights, ref RenderSpotShadowCommand spotcommand, bool inverseRender, Material opaqueOverride, NativeList_Int culledResult)
         {
             if (mlight.ShadowIndex < 0) return;
             CommandBuffer buffer = data.buffer;
@@ -200,7 +201,7 @@ namespace MPipeline
             }
             foreach (var i in culledResult)
             {
-                CustomDrawRequest.AllEvents[i].DrawShadow(buffer);
+                CustomDrawRequest.allEvents[i].DrawShadow(buffer);
             }
             data.ExecuteCommandBuffer();
             FilteringSettings renderSettings = new FilteringSettings()
@@ -225,7 +226,7 @@ namespace MPipeline
             buffer.SetInvertCulling(inverseRender);
         }
 
-        public static void DrawDirectionalShadow(PipelineCamera cam, ref StaticFit staticFit, ref PipelineCommandData data, ref RenderClusterOptions opts, float* clipDistances, OrthoCam* camCoords, Matrix4x4[] shadowVPs, Material opaqueOverride, NativeList<int> culledResult)
+        public static void DrawDirectionalShadow(PipelineCamera cam, ref StaticFit staticFit, ref PipelineCommandData data, ref RenderClusterOptions opts, float* clipDistances, OrthoCam* camCoords, Matrix4x4[] shadowVPs, Material opaqueOverride)
         {
             SunLight sunLight = SunLight.current;
             if (gpurpEnabled)
@@ -270,16 +271,17 @@ namespace MPipeline
                     PipelineFunctions.RunCullDispatching(baseBuffer, opts.cullingShader, opts.command);
                     opts.command.DrawProceduralIndirect(Matrix4x4.identity, sunLight.shadowDepthMaterial, 0, MeshTopology.Triangles, baseBuffer.instanceCountBuffer, 0);
                 }
-                foreach(var i in culledResult)
+                NativeList_Int culledResult = SunLight.customCullResults[pass];
+                foreach (var i in culledResult)
                 {
-                    CustomDrawRequest.AllEvents[i].DrawShadow(opts.command);
+                    CustomDrawRequest.allEvents[i].DrawShadow(opts.command);
                 }
                 data.ExecuteCommandBuffer();
                 FilteringSettings renderSettings = new FilteringSettings()
                 {
                     renderQueueRange = new RenderQueueRange(2000, 2449),
                     layerMask = sunLight.shadowMask,
-                    renderingLayerMask = 1       
+                    renderingLayerMask = 1
                 };
                 SortingSettings sorting = new SortingSettings(SunLight.shadowCam);
                 sorting.criteria = SortingCriteria.QuantizedFrontToBack;
@@ -303,17 +305,17 @@ namespace MPipeline
         public static void DrawPointLight(MLight lit,
             int mask,
             ref PointLightStruct light,
-            Material depthMaterial, 
-            ComputeShader cullingShader, 
-            int offset, ref PipelineCommandData data, 
+            Material depthMaterial,
+            ComputeShader cullingShader,
+            int offset, ref PipelineCommandData data,
             CubemapViewProjMatrix* vpMatrixArray,
-            RenderTexture renderTarget, 
+            RenderTexture renderTarget,
             bool inverseRender,
-            Material opaqueOverride, 
-            NativeList<int> culledResult)
+            Material opaqueOverride)
         {
             if (lit.ShadowIndex < 0) return;
             ref CubemapViewProjMatrix vpMatrices = ref vpMatrixArray[offset];
+            NativeList_Int culledResult = vpMatrices.customCulledResult;
             CommandBuffer cb = data.buffer;
             cb.SetGlobalVector(ShaderIDs._LightPos, light.sphere);
             cb.SetInvertCulling(true);
@@ -348,7 +350,7 @@ namespace MPipeline
             lit.shadowCam.orthographicSize = size;
             lit.shadowCam.cullingMatrix = Matrix4x4.Ortho(-size, size, -size, size, -size, size) * lit.shadowCam.worldToCameraMatrix;
             ScriptableCullingParameters cullParams;
-            if(!lit.shadowCam.TryGetCullingParameters(out cullParams))
+            if (!lit.shadowCam.TryGetCullingParameters(out cullParams))
             {
                 cb.SetInvertCulling(inverseRender);
                 return;
@@ -362,7 +364,7 @@ namespace MPipeline
                 cb.SetGlobalBuffer(ShaderIDs.verticesBuffer, baseBuffer.verticesBuffer);
                 PipelineFunctions.SetBaseBuffer(baseBuffer, cullingShader, vpMatrices.frustumPlanes, cb);
                 PipelineFunctions.RunCullDispatching(baseBuffer, cullingShader, cb);
-                
+
             }
             void DrawFace(int renderSlice, ref Matrix4x4 shadowmapVP, ref PipelineCommandData commandData)
             {
@@ -375,7 +377,7 @@ namespace MPipeline
                 }
                 foreach (var i in culledResult)
                 {
-                    CustomDrawRequest.AllEvents[i].DrawShadow(cb);
+                    CustomDrawRequest.allEvents[i].DrawShadow(cb);
                 }
                 commandData.ExecuteCommandBuffer();
                 commandData.context.DrawRenderers(results, ref opaqueRender, ref opaqueRenderSettings);

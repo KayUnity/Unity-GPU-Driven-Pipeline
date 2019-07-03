@@ -9,20 +9,28 @@ using static Unity.Collections.LowLevel.Unsafe.UnsafeUtility;
 using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 #if UNITY_EDITOR
+[ExecuteInEditMode]
 public unsafe class Test : MonoBehaviour
 {
-    private float3 initPos;
-    private void Start()
+    [EasyButtons.Button]
+    void RunTest()
     {
-        initPos = transform.position;
-    }
-    private void Update()
-    {
-        transform.position = initPos + float3(0, sin(Time.time * 10), 0);
+        NativeList_Int lst = new NativeList_Int(10, Allocator.Temp);
+        for(int i = 0; i < 20; ++i)
+        {
+            lst.Add(i);
+        }
+        lst.Remove(5);
+        Debug.Log(lst.Length);
+        foreach(var i in lst)
+        {
+            Debug.Log(i);
+        }
     }
 }
 #endif

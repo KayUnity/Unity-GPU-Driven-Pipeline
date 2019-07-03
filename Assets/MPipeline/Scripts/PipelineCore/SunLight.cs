@@ -29,6 +29,7 @@ public class SunLight : MonoBehaviour
     [System.NonSerialized] public Light light;
     [System.NonSerialized] public OrthoCam shadCam;
     public static Camera shadowCam { get; private set; }
+    public static NativeList<NativeList_Int> customCullResults;
     private void OnEnable()
     {
         if (current)
@@ -43,6 +44,8 @@ public class SunLight : MonoBehaviour
             else
                 OnDisable();
         }
+        if(!customCullResults.isCreated)
+            customCullResults = new NativeList<NativeList_Int>(CASCADELEVELCOUNT, CASCADELEVELCOUNT, Allocator.Persistent);
         light = GetComponent<Light>();
         current = this;
         shadCam.forward = transform.forward;

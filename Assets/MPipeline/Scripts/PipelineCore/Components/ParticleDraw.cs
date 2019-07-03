@@ -111,7 +111,12 @@ namespace MPipeline
         {
             DrawPass(buffer, 0);
         }
-
+        protected override void DrawCommand(out bool drawGBuffer, out bool drawShadow, out bool drawTransparent)
+        {
+            drawGBuffer = true;
+            drawShadow = false;
+            drawTransparent = false;
+        }
         public override void FinishJob()
         {
             CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
@@ -121,7 +126,7 @@ namespace MPipeline
             buffer.SetComputeBufferParam(movingShader, 0, ShaderIDs._TransformMatrices, currentPosBuffer);
             buffer.SetComputeBufferParam(movingShader, 0, ShaderIDs._OriginTransformMatrices, originPosBuffer);
             buffer.SetComputeTextureParam(movingShader, 0, ShaderIDs._NoiseTexture, noiseTexture);
-            buffer.SetComputeVectorParam(movingShader, ShaderIDs._OffsetDirection, transform.up);
+            buffer.SetComputeVectorParam(movingShader, ShaderIDs._OffsetDirection, transform.forward);
             offset += Time.deltaTime * runSpeed;
             offset = frac(offset);
             buffer.SetComputeFloatParam(movingShader, ShaderIDs._Offset, offset * noiseTexture.height);

@@ -45,6 +45,7 @@ namespace MPipeline
         private List<Light> allLights = new List<Light>(30);
         private JobHandle lightingHandle;
         private JobHandle csmHandle;
+        private JobHandle sunCullResultHandle;
         private JobHandle shadowCullHandle;
         private ShadowAvaliableCheck shadowCheckJob;
         private CascadeShadowmap csmStruct;
@@ -209,6 +210,11 @@ namespace MPipeline
                     isD3D = GraphicsUtility.platformIsD3D
                 };
                 csmHandle = csmStruct.ScheduleRefBurst(SunLight.CASCADELEVELCOUNT, 1);
+                sunCullResultHandle = new SunCustomRenderCull
+                {
+                    cams = sunShadowCams,
+                    cullResults = SunLight.customCullResults
+                }.Schedule(SunLight.CASCADELEVELCOUNT, 1, csmHandle);
             }
             decalEvt.PreRenderFrame(cam, ref data);
         }
@@ -244,8 +250,8 @@ namespace MPipeline
                     SunLight.current.thirdLevelDistance,
                     SunLight.current.farestDistance));//Only Mask
                 buffer.SetGlobalVector(ShaderIDs._SoftParam, SunLight.current.cascadeSoftValue / SunLight.current.resolution);
-                csmHandle.Complete();
-                SceneController.DrawDirectionalShadow(cam, ref staticFit, ref data, ref opts, clipDistances, sunShadowCams, cascadeShadowMapVP, proper.overrideOpaqueMaterial, proper.customRendererCulledResult);
+                sunCullResultHandle.Complete();
+                SceneController.DrawDirectionalShadow(cam, ref staticFit, ref data, ref opts, clipDistances, sunShadowCams, cascadeShadowMapVP, proper.overrideOpaqueMaterial);
                 buffer.SetGlobalMatrixArray(ShaderIDs._ShadowMapVPs, cascadeShadowMapVP);
                 buffer.SetGlobalTexture(ShaderIDs._DirShadowMap, SunLight.current.shadowmapTexture);
                 cbdr.dirLightShadowmap = SunLight.current.shadowmapTexture;
@@ -294,7 +300,7 @@ namespace MPipeline
                         if (!light.useShadowCache || light.updateShadowCache)
                         {
                             light.updateShadowCache = false;
-                            SceneController.DrawPointLight(light, localLightShadowLayer, ref ptLitStr, cubeDepthMaterial, cullShader, i, ref data, cubemapVPMatrices.unsafePtr, cbdr.cubeArrayMap, cam.inverseRender, proper.overrideOpaqueMaterial, proper.customRendererCulledResult);
+                            SceneController.DrawPointLight(light, localLightShadowLayer, ref ptLitStr, cubeDepthMaterial, cullShader, i, ref data, cubemapVPMatrices.unsafePtr, cbdr.cubeArrayMap, cam.inverseRender, proper.overrideOpaqueMaterial);
                         }
                         ptLitStr.shadowIndex = light.ShadowIndex;
                         //TODO
@@ -333,7 +339,7 @@ namespace MPipeline
                         if (!mlight.useShadowCache || mlight.updateShadowCache)
                         {
                             mlight.updateShadowCache = false;
-                            SceneController.DrawSpotLight(mlight, localLightShadowLayer, data.resources.shaders.gpuFrustumCulling, ref data, mlight.shadowCam, ref spot, ref spotBuffer, cam.inverseRender, proper.overrideOpaqueMaterial, proper.customRendererCulledResult);
+                            SceneController.DrawSpotLight(mlight, localLightShadowLayer, data.resources.shaders.gpuFrustumCulling, ref data, mlight.shadowCam, ref spot, ref spotBuffer, cam.inverseRender, proper.overrideOpaqueMaterial,vpMatrices.customCulledResult);
                         }
                         spot.shadowIndex = mlight.ShadowIndex;
                     }
@@ -447,6 +453,20 @@ namespace MPipeline
             RenderPipeline.ReleaseRTAfterFrame(ShaderIDs._PointLightTile);
             RenderPipeline.ReleaseRTAfterFrame(ShaderIDs._SpotLightTile);
             buffer.SetGlobalVector(ShaderIDs._TileSize, new Vector2(tileSize.x, tileSize.y));
+        }
+
+        public unsafe struct SunCustomRenderCull : IJobParallelFor
+        {
+            public NativeList<NativeList_Int> cullResults;
+            [NativeDisableUnsafePtrRestriction]
+            public OrthoCam* cams;
+            public void Execute(int index)
+            {
+                cullResults[index] = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.Temp);
+                float4* planes = stackalloc float4[6];
+                PipelineFunctions.GetFrustumPlanes(ref cams[index], planes);
+                CustomRendererCullJob.ExecuteInList(cullResults[index], planes, CustomDrawRequest.drawShadowList);
+            }
         }
 
         [Unity.Burst.BurstCompile]
@@ -592,6 +612,8 @@ namespace MPipeline
                 cube.frustumPlanes[3] = MathLib.GetPlane(float3(-1, 0, 0), str.sphere.xyz + float3(-str.sphere.w, 0, 0));
                 cube.frustumPlanes[4] = MathLib.GetPlane(float3(0, 0, 1), str.sphere.xyz + float3(0, 0, str.sphere.w));
                 cube.frustumPlanes[5] = MathLib.GetPlane(float3(0, 0, -1), str.sphere.xyz + float3(0, 0, -str.sphere.w));
+                cube.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.Temp);
+                CustomRendererCullJob.ExecuteInList(cube.customCulledResult, cube.frustumPlanes, CustomDrawRequest.drawShadowList);
             }
             public static void CalculatePersMatrix(SpotLight* allLights, SpotLightMatrix* projectionMatrices, int index)
             {
@@ -609,6 +631,10 @@ namespace MPipeline
                 cam.UpdateProjectionMatrix();
                 matrices.projectionMatrix = cam.projectionMatrix;
                 matrices.worldToCamera = cam.worldToCameraMatrix;
+                matrices.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.Temp);
+                float4* frustumPlanes = stackalloc float4[6];
+                PipelineFunctions.GetFrustumPlanes(ref cam, frustumPlanes);
+                CustomRendererCullJob.ExecuteInList(matrices.customCulledResult, frustumPlanes, CustomDrawRequest.drawShadowList);
             }
             public void Execute(int index)
             {

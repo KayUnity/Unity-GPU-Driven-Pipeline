@@ -8,11 +8,14 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Collections;
 using static Unity.Mathematics.math;
+using System.IO;
 namespace MPipeline
 {
     [RequireComponent(typeof(SkinnedMeshRenderer))]
     public unsafe sealed class AnimationDraw : CustomDrawRequest
     {
+        public string[] animationPaths;
+        public Animator animator;
         private SkinnedMeshRenderer skinRenderer;
         private ComputeBuffer verticesBuffer;
         private ComputeBuffer lastVerticesBuffer;
@@ -22,13 +25,16 @@ namespace MPipeline
         private Material[] allMats;
         private float4x4 localMatrix;
         private NativeArray<float3x4> skinResults;
-        private NativeArray<float4x4> bindPoses;
-        private NativeArray<float3> boneLossyScales;
-        private TransformAccessArray bones;
         private JobHandle handle;
         private ComputeShader skinShader;
+        private List<AnimationClip> lstRecord;
+        [Range(0f, 1f)]
+        public float animationNormalizeTime = 0;
+        public int clipIndex = 0;
         public Vector3 boundingBoxPosition = Vector3.zero;
         public Vector3 boundingBoxExtents = new Vector3(0.5f, 0.5f, 0.5f);
+        private Transform[] bones;
+        private Matrix4x4[] bindArr;
         struct Vertex
         {
             public float4 tangent;
@@ -45,6 +51,11 @@ namespace MPipeline
             public int4 boneIndex;
             public float4 boneWeight;
         }
+        struct AnimationClip
+        {
+            public AnimationHead head;
+            public NativeArray<float3x4> arr;
+        }
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.white;
@@ -54,17 +65,17 @@ namespace MPipeline
         private void Awake()
         {
             skinRenderer = GetComponent<SkinnedMeshRenderer>();
-            
+
             triangleBuffers = new List<ComputeBuffer>(skinRenderer.sharedMesh.subMeshCount);
-            for(int i = 0; i < triangleBuffers.Capacity; ++i)
+            for (int i = 0; i < triangleBuffers.Capacity; ++i)
             {
                 int[] tris = skinRenderer.sharedMesh.GetTriangles(i);
                 var triBuffer = new ComputeBuffer(tris.Length, sizeof(int));
                 triBuffer.SetData(tris);
                 triangleBuffers.Add(triBuffer);
             }
-            
-            
+
+
             Vector3[] verts = skinRenderer.sharedMesh.vertices;
             Vector4[] tans = skinRenderer.sharedMesh.tangents;
             Vector3[] norms = skinRenderer.sharedMesh.normals;
@@ -72,18 +83,9 @@ namespace MPipeline
             NativeArray<SkinVertex> allVertices = new NativeArray<SkinVertex>(verts.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             BoneWeight[] weights = skinRenderer.sharedMesh.boneWeights;
             SkinVertex* vertsPtr = allVertices.Ptr();
-            var bonesTrans = skinRenderer.bones;
-            bindPoses = new NativeArray<float4x4>(bonesTrans.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            boneLossyScales = new NativeArray<float3>(bonesTrans.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            Matrix4x4[] bindArr = skinRenderer.sharedMesh.bindposes;
-            for (int i = 0; i < bindArr.Length; ++i)
-            {
-                bindPoses[i] = bindArr[i];
-                Transform part = bonesTrans[i].parent;
-                boneLossyScales[i] = part ? (float3)part.lossyScale : float3(1, 1, 1);
-            }
-            skinResults = new NativeArray<float3x4>(bonesTrans.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            bones = new TransformAccessArray(bonesTrans);
+            bindArr = skinRenderer.sharedMesh.bindposes;
+            bones = skinRenderer.bones;
+            skinResults = new NativeArray<float3x4>(bindArr.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             for (int i = 0; i < allVertices.Length; ++i)
             {
                 ref var sk = ref vertsPtr[i];
@@ -98,10 +100,41 @@ namespace MPipeline
             verticesBuffer = new ComputeBuffer(allVertices.Length, sizeof(Vertex));
             lastVerticesBuffer = new ComputeBuffer(allVertices.Length, sizeof(Vertex));
             skinVerticesBuffer = new ComputeBuffer(allVertices.Length, sizeof(SkinVertex));
-            bonesBuffer = new ComputeBuffer(bonesTrans.Length, sizeof(float3x4));
+            bonesBuffer = new ComputeBuffer(bindArr.Length, sizeof(float3x4));
             skinVerticesBuffer.SetData(allVertices);
             allVertices.Dispose();
             allMats = skinRenderer.sharedMaterials;
+            lstRecord = ReadFiles();
+        }
+        private List<AnimationClip> ReadFiles()
+        {
+            List<AnimationClip> resultArr = new List<AnimationClip>(animationPaths.Length);
+            FileStream[] strs = new FileStream[animationPaths.Length];
+            for (int i = 0; i < strs.Length; ++i)
+            {
+                strs[i] = new FileStream(animationPaths[i], FileMode.Open, FileAccess.Read);
+            }
+            long maxLen = -1;
+            foreach (var i in strs)
+            {
+                maxLen = max(maxLen, i.Length);
+            }
+            Debug.Log(maxLen);
+            byte[] byteArray = new byte[maxLen];
+            foreach (var i in strs)
+            {
+                i.Read(byteArray, 0, (int)i.Length);
+                AnimationHead* head = (AnimationHead*)byteArray.Ptr();
+                AnimationClip clip = new AnimationClip
+                {
+                    head = *head
+                };
+                NativeArray<float3x4> currArr = new NativeArray<float3x4>((int)((i.Length - sizeof(AnimationHead)) / sizeof(float3x4)), Allocator.Persistent);
+                UnsafeUtility.MemCpy(currArr.GetUnsafePtr(), head + 1, currArr.Length * sizeof(float3x4));
+                clip.arr = currArr;
+                resultArr.Add(clip);
+            }
+            return resultArr;
         }
         protected override void OnEnableFunc()
         {
@@ -112,16 +145,22 @@ namespace MPipeline
             verticesBuffer.Dispose();
             lastVerticesBuffer.Dispose();
             skinVerticesBuffer.Dispose();
-            boneLossyScales.Dispose();
-            bones.Dispose();
-            bindPoses.Dispose();
             skinResults.Dispose();
             bonesBuffer.Dispose();
-            foreach(var i in triangleBuffers)
+            foreach (var i in triangleBuffers)
             {
                 i.Dispose();
             }
             triangleBuffers.Clear();
+            if (lstRecord != null)
+            {
+                foreach (var i in lstRecord)
+                {
+                    if (i.arr.IsCreated)
+                        i.arr.Dispose();
+                }
+                lstRecord = null;
+            }
         }
         public override bool Cull(float4* frustumPlanes)
         {
@@ -150,16 +189,35 @@ namespace MPipeline
         {
             DrawPass(buffer, 1);
         }
+        protected override void DrawCommand(out bool drawGBuffer, out bool drawShadow, out bool drawTransparent)
+        {
+            drawGBuffer = true;
+            drawShadow = true;
+            drawTransparent = false;
+        }
+        BonesTransform jobStruct;
         public override void PrepareJob(PipelineResources resources)
         {
             localMatrix = transform.localToWorldMatrix;
             skinShader = resources.shaders.gpuSkin;
-            handle = new BonesTransform
+            AnimationClip clip = lstRecord[clipIndex];
+            float currentFrameFloat = (int)(animationNormalizeTime * clip.head.frameRate * clip.head.length);
+            int currentFrame = (int)currentFrameFloat;
+            if (currentFrame >= clip.arr.Length / clip.head.bonesCount) currentFrame = 0;
+            int nextFrame = currentFrame + 1;
+            if (nextFrame >= clip.arr.Length / clip.head.bonesCount) nextFrame = 1;
+            jobStruct = new BonesTransform
             {
-                bindPoses = bindPoses.Ptr(),
-                boneLossyScales = boneLossyScales.Ptr(),
+                bindPoses = (float4x4*)bindArr.Ptr(),
+                bones = clip.arr.Ptr(),
+                bonesCount = clip.head.bonesCount,
+                bonesLocal = animator.transform.localToWorldMatrix,
+                currentFrame = currentFrame,
+                nextFrame = nextFrame,
+                lerpValue = frac(currentFrameFloat),
                 results = skinResults.Ptr()
-            }.Schedule(bones);
+            };
+            handle = jobStruct.ScheduleRefBurst(clip.head.bonesCount, 16);
         }
 
         public override void FinishJob()
@@ -176,19 +234,31 @@ namespace MPipeline
             bonesBuffer.SetData(skinResults);
         }
         [Unity.Burst.BurstCompile]
-        private struct BonesTransform : IJobParallelForTransform
+        private struct BonesTransform : IJobParallelFor
         {
             [NativeDisableUnsafePtrRestriction]
             public float3x4* results;
             [NativeDisableUnsafePtrRestriction]
             public float4x4* bindPoses;
             [NativeDisableUnsafePtrRestriction]
-            public float3* boneLossyScales;
-            public void Execute(int index, TransformAccess access)
+            public float3x4* bones;
+            public float4x4 bonesLocal;
+            public int bonesCount;
+            public int currentFrame;
+            public int nextFrame;
+            public float lerpValue;
+            public void Execute(int index)
             {
-                float4x4 bonesLocal = Matrix4x4.TRS(access.position, access.rotation, boneLossyScales[index]);
-                bonesLocal = mul(bonesLocal, bindPoses[index]);
-                results[index] = float3x4(bonesLocal.c0.xyz, bonesLocal.c1.xyz, bonesLocal.c2.xyz, bonesLocal.c3.xyz);
+                float3x4 lastBone = bones[index + bonesCount * currentFrame];
+                float3x4 nextBone = bones[index + bonesCount * nextFrame];
+                lastBone.c0 = lerp(lastBone.c0, nextBone.c0, lerpValue);
+                lastBone.c1 = lerp(lastBone.c1, nextBone.c1, lerpValue);
+                lastBone.c2 = lerp(lastBone.c2, nextBone.c2, lerpValue);
+                lastBone.c3 = lerp(lastBone.c3, nextBone.c3, lerpValue);
+                float4x4 bone = float4x4(float4(lastBone.c0, 0), float4(lastBone.c1, 0), float4(lastBone.c2, 0), float4(lastBone.c3, 1));
+                bone = mul(bonesLocal, bone);
+                bone = mul(bone, bindPoses[index]);
+                results[index] = float3x4(bone.c0.xyz, bone.c1.xyz, bone.c2.xyz, bone.c3.xyz);
             }
         }
     }

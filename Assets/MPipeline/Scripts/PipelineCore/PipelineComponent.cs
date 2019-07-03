@@ -47,6 +47,13 @@ namespace MPipeline
         }
     }
 
+    public struct AnimationHead
+    {
+        public float frameRate;
+        public float length;
+        public int bonesCount;
+    }
+
     public struct Point
     {
         public float3 position;
@@ -199,6 +206,7 @@ namespace MPipeline
         public Matrix4x4 rightProjView;
         public Matrix4x4 leftProjView;
         public float4* frustumPlanes;
+        public NativeList_Int customCulledResult;
     }
 
     public struct FogVolume
@@ -363,6 +371,10 @@ namespace MPipeline
         public void UpdateViewMatrix(float4x4 localToWorld)
         {
             worldToCameraMatrix = MathLib.GetWorldToLocal(localToWorld);
+            right = localToWorld.c0.xyz;
+            up = localToWorld.c1.xyz;
+            forward = localToWorld.c2.xyz;
+            position = localToWorld.c3.xyz;
             float4 row2 = -float4(worldToCameraMatrix.c0.z, worldToCameraMatrix.c1.z, worldToCameraMatrix.c2.z, worldToCameraMatrix.c3.z);
             worldToCameraMatrix.c0.z = row2.x;
             worldToCameraMatrix.c1.z = row2.y;

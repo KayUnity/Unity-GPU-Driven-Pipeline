@@ -34,5 +34,6 @@ namespace MPipeline
         public void* mLightPtr;
         public Matrix4x4 projectionMatrix;
         public Matrix4x4 worldToCamera;
+        public NativeList_Int customCulledResult;
     }
 }

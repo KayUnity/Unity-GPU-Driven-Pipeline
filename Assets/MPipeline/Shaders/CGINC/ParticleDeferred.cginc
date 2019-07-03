@@ -56,7 +56,7 @@ void frag_surf (v2f_surf IN,
   float3 normal = UnpackNormal(tex2D(_BumpMap, IN.pack0));
   normal = normalize(mul(normal, wdMatrix));
   float NoV = dot(normal, worldViewDir);
-  outEmission = max(pow(1 - NoV, 0.8) * _EmissionColor * _EmissionMultiplier, 0);
+  outEmission = max(_EmissionColor * _EmissionMultiplier, 0);
 }
 
 

@@ -25,6 +25,8 @@ namespace MPipeline
         private ReflectionEvent reflection;
         private Material downSampleMat;
         private Material motionVecMat;
+        private NativeList_Int gbufferCullResults;
+        private JobHandle cullHandle;
         private RenderTargetIdentifier[] downSampledGBuffers = new RenderTargetIdentifier[3];
         protected override void Init(PipelineResources resources)
         {
@@ -64,6 +66,16 @@ namespace MPipeline
                 DestroyImmediate(clusterMat);
             }
             linearMat = null;
+        }
+        public override void PreRenderFrame(PipelineCamera cam, ref PipelineCommandData data)
+        {
+            gbufferCullResults = new NativeList_Int(CustomDrawRequest.drawGBufferList.Length, Allocator.Temp);
+            cullHandle = new CustomRendererCullJob
+            {
+                cullResult = gbufferCullResults,
+                frustumPlanes = (float4*)proper.frustumPlanes.Ptr(),
+                indexBuffer = CustomDrawRequest.drawGBufferList
+            }.Schedule(CustomDrawRequest.drawGBufferList.Length, 32);
         }
 
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)
@@ -125,8 +137,9 @@ namespace MPipeline
             //Draw Depth Prepass
             data.buffer.SetRenderTarget(ShaderIDs._DepthBufferTexture);
             data.buffer.ClearRenderTarget(true, false, Color.black);
-            var lst = CustomDrawRequest.AllEvents;
-            foreach (var i in proper.customRendererCulledResult)
+            cullHandle.Complete();
+            var lst = CustomDrawRequest.allEvents;
+            foreach (var i in gbufferCullResults)
             {
                 lst[i].DrawDepthPrepass(buffer);
             }
@@ -142,7 +155,7 @@ namespace MPipeline
                 SceneController.DrawCluster_LastFrameDepthHiZ(ref options, hizOccData, clusterMat, cam);
             }
             
-            foreach (var i in proper.customRendererCulledResult)
+            foreach (var i in gbufferCullResults)
             {
                 lst[i].DrawGBuffer(buffer);
             }
@@ -160,7 +173,7 @@ namespace MPipeline
             data.buffer.Blit(ShaderIDs._DepthBufferTexture, ShaderIDs._CameraDepthTexture);
             //Draw Motion Vector
             data.buffer.SetRenderTarget(color: ShaderIDs._CameraMotionVectorsTexture, depth: ShaderIDs._DepthBufferTexture);
-            foreach (var i in proper.customRendererCulledResult)
+            foreach (var i in gbufferCullResults)
             {
                 lst[i].DrawMotionVector(buffer);
             }

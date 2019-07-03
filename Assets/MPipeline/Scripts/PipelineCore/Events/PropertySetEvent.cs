@@ -29,8 +29,6 @@ namespace MPipeline
         public Matrix4x4 inverseNonJitterVP { get; private set; }
         [System.NonSerialized]
         public Material overrideOpaqueMaterial;
-        public NativeList<int> customRendererCulledResult { get; private set; }
-        private JobHandle cdrCullHandle;
         private System.Func<PipelineCamera, LastVPData> getLastVP = (c) =>
         {
             float4x4 p = GraphicsUtility.GetGPUProjectionMatrix(c.cam.projectionMatrix, false);
@@ -69,12 +67,7 @@ namespace MPipeline
                 inverseVP = (float4x4*)UnsafeUtility.AddressOf(ref inverseVP)
             };
             handle = calculateJob.ScheduleRefBurst();
-            customRendererCulledResult = new NativeList<int>(CustomDrawRequest.AllEvents.Count, Unity.Collections.Allocator.Temp);
-            cdrCullHandle = new CustomRendererCullJob
-            {
-                cullResult = customRendererCulledResult,
-                frustumPlanes = (float4*)frustumPlanes.Ptr()
-            }.Schedule(CustomDrawRequest.AllEvents.Count, 8);
+
         }
 
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)
@@ -91,7 +84,6 @@ namespace MPipeline
             buffer.SetGlobalMatrix(ShaderIDs._InvVP, inverseVP);
             buffer.SetGlobalVector(ShaderIDs._RandomSeed, calculateJob.randNumber);
             lastData.lastVP = calculateJob.nonJitterVP;
-            cdrCullHandle.Complete();
         }
         protected override void Init(PipelineResources resources)
         {
@@ -135,20 +127,6 @@ namespace MPipeline
                 *inverseVP = inverse(*VP);
             }
         }
-        private struct CustomRendererCullJob : IJobParallelFor
-        {
-            public NativeList<int> cullResult;
-            [NativeDisableUnsafePtrRestriction]
-            public float4* frustumPlanes;
-            public void Execute(int index)
-            {
-                CustomDrawRequest cdr = CustomDrawRequest.AllEvents[index];
-                if (cdr.Cull(frustumPlanes))
-                {
-                    cullResult.ConcurrentAdd(index);
-                }
-            }
-        }
     }
 
     public class LastVPData : IPerCameraData
@@ -160,6 +138,37 @@ namespace MPipeline
         }
         public override void DisposeProperty()
         {
+        }
+    }
+    public unsafe struct CustomRendererCullJob : IJobParallelFor
+    {
+        public NativeList_Int cullResult;
+        [NativeDisableUnsafePtrRestriction]
+        public float4* frustumPlanes;
+        [NativeDisableUnsafePtrRestriction]
+        public NativeList_Int indexBuffer;
+        public static void ExecuteInList(NativeList_Int cullResult, float4* frustumPlanes, NativeList_Int indexbuffer)
+        {
+            List<CustomDrawRequest> allEvent = CustomDrawRequest.allEvents;
+            for (int i = 0; i < indexbuffer.Length; ++i)
+            {
+                int index = indexbuffer[i];
+                CustomDrawRequest cdr = allEvent[index];
+                if (cdr.Cull(frustumPlanes))
+                {
+                    cullResult.Add(index);
+                }
+            }
+        }
+        public void Execute(int index)
+        {
+            List<CustomDrawRequest> allEvent = CustomDrawRequest.allEvents;
+            index = indexBuffer[index];
+            CustomDrawRequest cdr = allEvent[index];
+            if (cdr.Cull(frustumPlanes))
+            {
+                cullResult.ConcurrentAdd(index);
+            }
         }
     }
 }

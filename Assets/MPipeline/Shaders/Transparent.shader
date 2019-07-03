@@ -70,7 +70,6 @@ float4 _SpecularColor;
 		float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
 		o.pos = mul(_NonJitterTextureVP, worldPos);
 		  o.screenUV = ComputeScreenPos(o.pos).xyw;
-		  worldPos /= worldPos.w;
 		  o.worldPos = worldPos.xyz;
 		o.worldNormal = mul((float3x3)unity_ObjectToWorld, v.normal).xyz;
 		return o;

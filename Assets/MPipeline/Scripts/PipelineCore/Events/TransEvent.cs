@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine.Experimental.Rendering;
 namespace MPipeline
 {
@@ -12,6 +14,8 @@ namespace MPipeline
         private RenderTargetIdentifier[] transparentOutput = new RenderTargetIdentifier[2];
         private PropertySetEvent proper;
         public RapidBlur blur;
+        private JobHandle cullJob;
+        private NativeList_Int customCullResults;
         protected override void Init(PipelineResources resources)
         {
             proper = RenderPipeline.GetEvent<PropertySetEvent>();
@@ -24,6 +28,16 @@ namespace MPipeline
         protected override void Dispose()
         {
             blur.Dispose();
+        }
+        public override void PreRenderFrame(PipelineCamera cam, ref PipelineCommandData data)
+        {
+            customCullResults = new NativeList_Int(CustomDrawRequest.drawTransparentList.Length, Unity.Collections.Allocator.Temp);
+            cullJob = new CustomRendererCullJob
+            {
+                cullResult = customCullResults,
+                frustumPlanes = (float4*)proper.frustumPlanes.Ptr(),
+                indexBuffer = CustomDrawRequest.drawTransparentList
+            }.Schedule(CustomDrawRequest.drawTransparentList.Length, 32);
         }
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)
         {
@@ -48,8 +62,9 @@ namespace MPipeline
             transparentOutput[0] = cam.targets.renderTargetIdentifier;
             transparentOutput[1] = ShaderIDs._CameraDepthTexture;
             data.buffer.SetRenderTarget(colors: transparentOutput, depth: ShaderIDs._DepthBufferTexture);
-            var lst = CustomDrawRequest.AllEvents;
-            foreach (var i in proper.customRendererCulledResult)
+            cullJob.Complete();
+            var lst = CustomDrawRequest.allEvents;
+            foreach (var i in customCullResults)
             {
                 lst[i].DrawTransparent(data.buffer);
             }
