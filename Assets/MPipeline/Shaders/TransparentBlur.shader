@@ -10,8 +10,8 @@
 		SubShader
 		{
 			Tags{ "LightMode" = "Transparent" "Queue" = "Transparent"}
-						ZTest LEqual
-						ZWrite on
+						ZTest Less
+						ZWrite off
 						Cull back
 			Pass
 			{
@@ -43,8 +43,8 @@ float4 _Color;
 float4 _MainTex_ST;
 float4 _SpecularColor;
 float _ScreenOffset;
-float4 _GrabTexture_TexelSize;
 }
+float4 _GrabTexture_TexelSize;
 	
 	sampler2D _MainTex; 
 	sampler2D _GrabTexture;
@@ -120,7 +120,7 @@ float4 _GrabTexture_TexelSize;
 					#endif
 					color.a = 1-oneMinusReflectivity + color.a*oneMinusReflectivity;
 					
-					float3 screenColor = tex2D(_GrabTexture, screenUV + i.viewNormal.xy * _ScreenOffset * _GrabTexture_TexelSize.xy * (1 - linear01Depth)).xyz;
+					float3 screenColor = tex2D(_GrabTexture, screenUV + i.viewNormal.xy * _ScreenOffset * _GrabTexture_TexelSize.xy).xyz;
 					outputColor = lerp(screenColor, finalColor, color.a);
 					depth = i.pos.z;
 				}

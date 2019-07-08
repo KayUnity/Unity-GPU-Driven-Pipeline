@@ -29,7 +29,7 @@ public class SunLight : MonoBehaviour
     [System.NonSerialized] public Light light;
     [System.NonSerialized] public OrthoCam shadCam;
     public static Camera shadowCam { get; private set; }
-    public static NativeList<NativeList_Int> customCullResults;
+    public static NativeList_Int[] customCullResults = new NativeList_Int[CASCADELEVELCOUNT];
     private void OnEnable()
     {
         if (current)
@@ -44,8 +44,6 @@ public class SunLight : MonoBehaviour
             else
                 OnDisable();
         }
-        if(!customCullResults.isCreated)
-            customCullResults = new NativeList<NativeList_Int>(CASCADELEVELCOUNT, CASCADELEVELCOUNT, Allocator.Persistent);
         light = GetComponent<Light>();
         current = this;
         shadCam.forward = transform.forward;
@@ -54,24 +52,24 @@ public class SunLight : MonoBehaviour
         light.enabled = false;
         GameObject GetChild(string name)
         {
-            for(int i = 0; i < transform.childCount; ++i)
+            for (int i = 0; i < transform.childCount; ++i)
             {
-                if(transform.GetChild(i).name == name)
+                if (transform.GetChild(i).name == name)
                 {
                     return transform.GetChild(i).gameObject;
                 }
             }
             return null;
         }
-        if(!shadowCam)
+        if (!shadowCam)
         {
             GameObject shadObj = GetChild("Sun_Shadow_Cam");
-            if(!shadObj)
+            if (!shadObj)
             {
                 shadObj = new GameObject("Sun_Shadow_Cam");
             }
             shadowCam = shadObj.GetComponent<Camera>();
-            if(!shadowCam)
+            if (!shadowCam)
             {
                 shadObj.transform.SetParent(transform);
                 shadObj.transform.localRotation = Quaternion.identity;
@@ -103,7 +101,7 @@ public class SunLight : MonoBehaviour
             useMipMap = false,
             volumeDepth = 4,
             vrUsage = VRTextureUsage.None
-        }); 
+        });
         shadowmapTexture.filterMode = FilterMode.Bilinear;
         shadowDepthMaterial = new Material(Shader.Find("Hidden/ShadowDepth"));
         shadowFrustumPlanes = new NativeArray<AspectInfo>(3, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
@@ -125,9 +123,9 @@ public class SunLight : MonoBehaviour
             shadowmapTexture.Release();
             DestroyImmediate(shadowmapTexture);
         }
-        if(shadowDepthMaterial)
+        if (shadowDepthMaterial)
             DestroyImmediate(shadowDepthMaterial);
-        if(shadowFrustumPlanes.IsCreated)
+        if (shadowFrustumPlanes.IsCreated)
             shadowFrustumPlanes.Dispose();
     }
 }

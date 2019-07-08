@@ -172,6 +172,9 @@ namespace MPipeline
         {
             int camWidth = camera.cam.pixelWidth;
             int camHeight = camera.cam.pixelHeight;
+            var cam = camera.cam;
+            if(!historyTex) historyTex = new RenderTexture(cam.pixelWidth, cam.pixelHeight, 0, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear);
+            if (!historyMV) historyMV = new RenderTexture(cam.pixelWidth, cam.pixelHeight, 0, RenderTextureFormat.RGHalf, RenderTextureReadWrite.Linear);
             Resize(historyTex, camWidth, camHeight);
             Resize(historyMV, camWidth, camHeight);
         }

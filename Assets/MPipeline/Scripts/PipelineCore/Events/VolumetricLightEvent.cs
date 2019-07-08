@@ -115,7 +115,7 @@ namespace MPipeline
                     frustumPlanes = frustumPlanes,
                     fogVolumeCount = fogCount.Ptr(),
                     fogVolume = FogVolumeComponent.allVolumes.unsafePtr
-                }).Schedule(FogVolumeComponent.allVolumes.Length, 1);
+                }).Schedule(FogVolumeComponent.allVolumes.Length,max(1,  FogVolumeComponent.allVolumes.Length / 4));
             }
             if (useEmissionGeometry)
                 geometry.PreRender(ref data, proper);

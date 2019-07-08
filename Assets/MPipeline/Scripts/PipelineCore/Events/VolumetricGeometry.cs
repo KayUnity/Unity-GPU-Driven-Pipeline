@@ -39,7 +39,7 @@ namespace MPipeline {
                 allArea = AreaVolumeProbe.allAreaLight.unsafePtr,
                 planes = (float4*)proper.frustumPlanes.Ptr()
             };
-            jobHandle = job.ScheduleRefBurst(AreaVolumeProbe.allAreaLight.Length, 32);
+            jobHandle = job.ScheduleRefBurst(AreaVolumeProbe.allAreaLight.Length, max(1, AreaVolumeProbe.allAreaLight.Length / 4));
         }
 
         public void Dispose()

@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Skybox
   m_EditorClassIdentifier: 
   enabled: 1
-  skyboxMaterial: {fileID: 2100000, guid: 46ef66b909df82444a50fef7a8f38fc8, type: 2}
+  skyboxMaterial: {fileID: 2100000, guid: ec37289b71d848f43bfb4a308411c41e, type: 2}

@@ -148,5 +148,18 @@ namespace MPipeline
             if (p < (i - 1)) Quicksort(a, p, i - 1);
             if ((j + 1) < q) Quicksort(a, j + 1, q);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float3x4 GetLocalToWorld(Transform trans)
+        {
+            float4x4 fx = trans.localToWorldMatrix;
+            return new float3x4(fx.c0.xyz, fx.c1.xyz, fx.c2.xyz, fx.c3.xyz);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float3x4 GetWorldToLocal(Transform trans)
+        {
+            float4x4 fx = trans.worldToLocalMatrix;
+            return new float3x4(fx.c0.xyz, fx.c1.xyz, fx.c2.xyz, fx.c3.xyz);
+        }
     }
 }

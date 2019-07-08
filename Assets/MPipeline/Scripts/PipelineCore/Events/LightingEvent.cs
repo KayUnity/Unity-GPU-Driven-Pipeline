@@ -189,7 +189,7 @@ namespace MPipeline
                 shadowDist = shadowDist,
                 lightDist = cbdrDistance,
                 needCheckLight = needCheckedShadows
-            }).Schedule(allLights.Count, 1, shadowCullHandle);
+            }).Schedule(allLights.Count, max(1, allLights.Count / 4), shadowCullHandle);
             if (SunLight.current != null && SunLight.current.enabled && SunLight.current.enableShadow)
             {
                 clipDistances = (float*)UnsafeUtility.Malloc(SunLight.CASCADECLIPSIZE * sizeof(float), 16, Allocator.Temp);
@@ -209,11 +209,15 @@ namespace MPipeline
                     resolution = staticFit.resolution,
                     isD3D = GraphicsUtility.platformIsD3D
                 };
-                csmHandle = csmStruct.ScheduleRefBurst(SunLight.CASCADELEVELCOUNT, 1);
+                csmHandle = csmStruct.ScheduleRefBurst(SunLight.CASCADELEVELCOUNT, max(1, SunLight.CASCADELEVELCOUNT / 4));
+                for (int i = 0; i < SunLight.CASCADELEVELCOUNT; ++i)
+                {
+                    SunLight.customCullResults[i] = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.Temp);
+                }
                 sunCullResultHandle = new SunCustomRenderCull
                 {
                     cams = sunShadowCams,
-                    cullResults = SunLight.customCullResults
+                    cullResults = SunLight.customCullResults.Ptr()
                 }.Schedule(SunLight.CASCADELEVELCOUNT, 1, csmHandle);
             }
             decalEvt.PreRenderFrame(cam, ref data);
@@ -300,8 +304,11 @@ namespace MPipeline
                         if (!light.useShadowCache || light.updateShadowCache)
                         {
                             light.updateShadowCache = false;
-                            SceneController.DrawPointLight(light, localLightShadowLayer, ref ptLitStr, cubeDepthMaterial, cullShader, i, ref data, cubemapVPMatrices.unsafePtr, cbdr.cubeArrayMap, cam.inverseRender, proper.overrideOpaqueMaterial);
+                            SceneController.DrawPointLight(light, localLightShadowLayer, ref ptLitStr, cubeDepthMaterial, cullShader, ref data, ref vpMatrices, cbdr.cubeArrayMap, cam.inverseRender, proper.overrideOpaqueMaterial);
                         }
+                        vpMatrices.customCulledResult.Dispose();
+                        if (vpMatrices.frustumPlanes != null)
+                            UnsafeUtility.Free(vpMatrices.frustumPlanes, Allocator.TempJob);
                         ptLitStr.shadowIndex = light.ShadowIndex;
                         //TODO
                         //Multi frame shadowmap
@@ -339,8 +346,9 @@ namespace MPipeline
                         if (!mlight.useShadowCache || mlight.updateShadowCache)
                         {
                             mlight.updateShadowCache = false;
-                            SceneController.DrawSpotLight(mlight, localLightShadowLayer, data.resources.shaders.gpuFrustumCulling, ref data, mlight.shadowCam, ref spot, ref spotBuffer, cam.inverseRender, proper.overrideOpaqueMaterial,vpMatrices.customCulledResult);
+                            SceneController.DrawSpotLight(mlight, localLightShadowLayer, data.resources.shaders.gpuFrustumCulling, ref data, mlight.shadowCam, ref spot, ref spotBuffer, cam.inverseRender, proper.overrideOpaqueMaterial, vpMatrices.customCulledResult);
                         }
+                        vpMatrices.customCulledResult.Dispose();
                         spot.shadowIndex = mlight.ShadowIndex;
                     }
                 }
@@ -457,12 +465,12 @@ namespace MPipeline
 
         public unsafe struct SunCustomRenderCull : IJobParallelFor
         {
-            public NativeList<NativeList_Int> cullResults;
+            [NativeDisableUnsafePtrRestriction]
+            public NativeList_Int* cullResults;
             [NativeDisableUnsafePtrRestriction]
             public OrthoCam* cams;
             public void Execute(int index)
             {
-                cullResults[index] = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.Temp);
                 float4* planes = stackalloc float4[6];
                 PipelineFunctions.GetFrustumPlanes(ref cams[index], planes);
                 CustomRendererCullJob.ExecuteInList(cullResults[index], planes, CustomDrawRequest.drawShadowList);
@@ -554,68 +562,78 @@ namespace MPipeline
                 spotLightCount = 0;
                 allLights = null;
             }
-            public static void CalculateCubemapMatrix(PointLightStruct* allLights, CubemapViewProjMatrix* allMatrix, int index)
+            public static void CalculateCubemapMatrix(PointLightStruct* allLights, CubemapViewProjMatrix* allMatrix, int index, bool cull)
             {
-                ref CubemapViewProjMatrix cube = ref allMatrix[index];
-                int2 shadowIndex = cube.index;
-                PointLightStruct str = allLights[shadowIndex.x];
-                PerspCam cam = new PerspCam();
-                cam.aspect = 1;
-                cam.farClipPlane = str.sphere.w;
-                cam.nearClipPlane = 0.3f;
-                cam.position = str.sphere.xyz;
-                cam.fov = 90f;
-                //Forward
-                cam.right = float3(1, 0, 0);
-                cam.up = float3(0, 1, 0);
-                cam.forward = float3(0, 0, 1);
-                cam.UpdateTRSMatrix();
-                cam.UpdateProjectionMatrix();
-                float4x4 proj = GraphicsUtility.GetGPUProjectionMatrix(cam.projectionMatrix, true);
-                cube.forwardProjView = mul(proj, cam.worldToCameraMatrix);
-                //Back
-                cam.right = float3(-1, 0, 0);
-                cam.up = float3(0, 1, 0);
-                cam.forward = float3(0, 0, -1);
-                cam.UpdateTRSMatrix();
 
-                cube.backProjView = mul(proj, cam.worldToCameraMatrix);
-                //Up
-                cam.right = float3(-1, 0, 0);
-                cam.up = float3(0, 0, 1);
-                cam.forward = float3(0, 1, 0);
-                cam.UpdateTRSMatrix();
-                cube.upProjView = mul(proj, cam.worldToCameraMatrix);
-                //Down
-                cam.right = float3(-1, 0, 0);
-                cam.up = float3(0, 0, -1);
-                cam.forward = float3(0, -1, 0);
-                cam.UpdateTRSMatrix();
-                cube.downProjView = mul(proj, cam.worldToCameraMatrix);
-                //Right
-                cam.up = float3(0, 1, 0);
-                cam.right = float3(0, 0, -1);
-                cam.forward = float3(1, 0, 0);
-                cam.UpdateTRSMatrix();
-                cube.rightProjView = mul(proj, cam.worldToCameraMatrix);
-                //Left
-                cam.up = float3(0, 1, 0);
-                cam.right = float3(0, 0, 1);
-                cam.forward = float3(-1, 0, 0);
-                cam.UpdateTRSMatrix();
-                cube.leftProjView = mul(proj, cam.worldToCameraMatrix);
-                NativeArray<float4> frustumArray = new NativeArray<float4>(6, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                cube.frustumPlanes = frustumArray.Ptr();
-                cube.frustumPlanes[0] = MathLib.GetPlane(float3(0, 1, 0), str.sphere.xyz + float3(0, str.sphere.w, 0));
-                cube.frustumPlanes[1] = MathLib.GetPlane(float3(0, -1, 0), str.sphere.xyz + float3(0, -str.sphere.w, 0));
-                cube.frustumPlanes[2] = MathLib.GetPlane(float3(1, 0, 0), str.sphere.xyz + float3(str.sphere.w, 0, 0));
-                cube.frustumPlanes[3] = MathLib.GetPlane(float3(-1, 0, 0), str.sphere.xyz + float3(-str.sphere.w, 0, 0));
-                cube.frustumPlanes[4] = MathLib.GetPlane(float3(0, 0, 1), str.sphere.xyz + float3(0, 0, str.sphere.w));
-                cube.frustumPlanes[5] = MathLib.GetPlane(float3(0, 0, -1), str.sphere.xyz + float3(0, 0, -str.sphere.w));
-                cube.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.Temp);
-                CustomRendererCullJob.ExecuteInList(cube.customCulledResult, cube.frustumPlanes, CustomDrawRequest.drawShadowList);
+                ref CubemapViewProjMatrix cube = ref allMatrix[index];
+                if (cull)
+                {
+
+                    int2 shadowIndex = cube.index;
+                    PointLightStruct str = allLights[shadowIndex.x];
+                    PerspCam cam = new PerspCam();
+                    cam.aspect = 1;
+                    cam.farClipPlane = str.sphere.w;
+                    cam.nearClipPlane = 0.3f;
+                    cam.position = str.sphere.xyz;
+                    cam.fov = 90f;
+                    //Forward
+                    cam.right = float3(1, 0, 0);
+                    cam.up = float3(0, 1, 0);
+                    cam.forward = float3(0, 0, 1);
+                    cam.UpdateTRSMatrix();
+                    cam.UpdateProjectionMatrix();
+                    float4x4 proj = GraphicsUtility.GetGPUProjectionMatrix(cam.projectionMatrix, true);
+                    cube.forwardProjView = mul(proj, cam.worldToCameraMatrix);
+                    //Back
+                    cam.right = float3(-1, 0, 0);
+                    cam.up = float3(0, 1, 0);
+                    cam.forward = float3(0, 0, -1);
+                    cam.UpdateTRSMatrix();
+
+                    cube.backProjView = mul(proj, cam.worldToCameraMatrix);
+                    //Up
+                    cam.right = float3(-1, 0, 0);
+                    cam.up = float3(0, 0, 1);
+                    cam.forward = float3(0, 1, 0);
+                    cam.UpdateTRSMatrix();
+                    cube.upProjView = mul(proj, cam.worldToCameraMatrix);
+                    //Down
+                    cam.right = float3(-1, 0, 0);
+                    cam.up = float3(0, 0, -1);
+                    cam.forward = float3(0, -1, 0);
+                    cam.UpdateTRSMatrix();
+                    cube.downProjView = mul(proj, cam.worldToCameraMatrix);
+                    //Right
+                    cam.up = float3(0, 1, 0);
+                    cam.right = float3(0, 0, -1);
+                    cam.forward = float3(1, 0, 0);
+                    cam.UpdateTRSMatrix();
+                    cube.rightProjView = mul(proj, cam.worldToCameraMatrix);
+                    //Left
+                    cam.up = float3(0, 1, 0);
+                    cam.right = float3(0, 0, 1);
+                    cam.forward = float3(-1, 0, 0);
+                    cam.UpdateTRSMatrix();
+                    cube.leftProjView = mul(proj, cam.worldToCameraMatrix);
+                    //NativeArray<float4> frustumArray = new NativeArray<float4>(6, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+                    cube.frustumPlanes = MUnsafeUtility.Malloc<float4>(6 * sizeof(float4), Allocator.TempJob);
+                    cube.frustumPlanes[0] = MathLib.GetPlane(float3(0, 1, 0), str.sphere.xyz + float3(0, str.sphere.w, 0));
+                    cube.frustumPlanes[1] = MathLib.GetPlane(float3(0, -1, 0), str.sphere.xyz + float3(0, -str.sphere.w, 0));
+                    cube.frustumPlanes[2] = MathLib.GetPlane(float3(1, 0, 0), str.sphere.xyz + float3(str.sphere.w, 0, 0));
+                    cube.frustumPlanes[3] = MathLib.GetPlane(float3(-1, 0, 0), str.sphere.xyz + float3(-str.sphere.w, 0, 0));
+                    cube.frustumPlanes[4] = MathLib.GetPlane(float3(0, 0, 1), str.sphere.xyz + float3(0, 0, str.sphere.w));
+                    cube.frustumPlanes[5] = MathLib.GetPlane(float3(0, 0, -1), str.sphere.xyz + float3(0, 0, -str.sphere.w));
+                    cube.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.TempJob);
+                    CustomRendererCullJob.ExecuteInList(cube.customCulledResult, cube.frustumPlanes, CustomDrawRequest.drawShadowList);
+                }
+                else
+                {
+                    cube.customCulledResult = new NativeList_Int();
+                    cube.frustumPlanes = null;
+                }
             }
-            public static void CalculatePersMatrix(SpotLight* allLights, SpotLightMatrix* projectionMatrices, int index)
+            public static void CalculatePersMatrix(SpotLight* allLights, SpotLightMatrix* projectionMatrices, int index, bool cull)
             {
                 ref SpotLightMatrix matrices = ref projectionMatrices[index];
                 int2 shadowIndex = matrices.index;
@@ -631,11 +649,19 @@ namespace MPipeline
                 cam.UpdateProjectionMatrix();
                 matrices.projectionMatrix = cam.projectionMatrix;
                 matrices.worldToCamera = cam.worldToCameraMatrix;
-                matrices.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.Temp);
-                float4* frustumPlanes = stackalloc float4[6];
-                PipelineFunctions.GetFrustumPlanes(ref cam, frustumPlanes);
-                CustomRendererCullJob.ExecuteInList(matrices.customCulledResult, frustumPlanes, CustomDrawRequest.drawShadowList);
+                if (cull)
+                {
+                    matrices.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.TempJob);
+                    float4* frustumPlanes = stackalloc float4[6];
+                    PipelineFunctions.GetFrustumPlanes(ref cam, frustumPlanes);
+                    CustomRendererCullJob.ExecuteInList(matrices.customCulledResult, frustumPlanes, CustomDrawRequest.drawShadowList);
+                }
+                else
+                {
+                    matrices.customCulledResult = new NativeList_Int();
+                }
             }
+
             public void Execute(int index)
             {
                 PointLightStruct* indStr = pointLightArray.Ptr();
@@ -688,7 +714,7 @@ namespace MPipeline
 
                         if (currentPtr->shadowIndex >= 0)
                         {
-                            CalculateCubemapMatrix(indStr, cubemapVPMatrices.unsafePtr, currentPtr->shadowIndex);
+                            CalculateCubemapMatrix(indStr, cubemapVPMatrices.unsafePtr, currentPtr->shadowIndex, !mlight.useShadowCache || mlight.updateShadowCache);
                         }
                         break;
                     case LightType.Spot:
@@ -740,7 +766,7 @@ namespace MPipeline
                         }
                         if (currentSpot->shadowIndex >= 0)
                         {
-                            CalculatePersMatrix(spotStr, spotLightMatrices.unsafePtr, currentSpot->shadowIndex);
+                            CalculatePersMatrix(spotStr, spotLightMatrices.unsafePtr, currentSpot->shadowIndex, !mlight.useShadowCache || mlight.updateShadowCache);
                         }
                         break;
 

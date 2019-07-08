@@ -218,7 +218,7 @@ namespace MPipeline
 
             //////Gte HiZ_DEPTHrt//////
             ScreenSpaceReflectionBuffer.CopyTexture(ShaderIDs._CameraDepthTexture, 0, 0, camData.SSR_HierarchicalDepth_RT, 0, 0);
-            for (int i = 1; i < 9; ++i)
+            for (int i = 1; i < HiZ_MaxLevel + 1; ++i)
             {
                 ScreenSpaceReflectionBuffer.SetGlobalInt(SSR_HiZ_PrevDepthLevel_ID, i - 1);
                 ScreenSpaceReflectionBuffer.SetRenderTarget(camData.SSR_HierarchicalDepth_BackUp_RT, i);

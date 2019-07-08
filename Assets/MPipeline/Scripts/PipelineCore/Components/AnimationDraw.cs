@@ -28,9 +28,11 @@ namespace MPipeline
         private JobHandle handle;
         private ComputeShader skinShader;
         private List<AnimationClip> lstRecord;
-        [Range(0f, 1f)]
-        public float animationNormalizeTime = 0;
+        public float animationTime = 0;
         public int clipIndex = 0;
+        public bool play = false;
+        public bool autoReplay;
+        
         public Vector3 boundingBoxPosition = Vector3.zero;
         public Vector3 boundingBoxExtents = new Vector3(0.5f, 0.5f, 0.5f);
         private Transform[] bones;
@@ -200,8 +202,16 @@ namespace MPipeline
         {
             localMatrix = transform.localToWorldMatrix;
             skinShader = resources.shaders.gpuSkin;
+            if (!play) return;
             AnimationClip clip = lstRecord[clipIndex];
-            float currentFrameFloat = (int)(animationNormalizeTime * clip.head.frameRate * clip.head.length);
+            animationTime += Time.deltaTime;
+            animationTime = max(animationTime, 0);
+            if (animationTime > clip.head.length)
+            {
+                if (autoReplay) animationTime -= clip.head.length;
+                else animationTime = clip.head.length;
+            }
+            float currentFrameFloat = (int)(animationTime * clip.head.frameRate);
             int currentFrame = (int)currentFrameFloat;
             if (currentFrame >= clip.arr.Length / clip.head.bonesCount) currentFrame = 0;
             int nextFrame = currentFrame + 1;
@@ -217,11 +227,12 @@ namespace MPipeline
                 lerpValue = frac(currentFrameFloat),
                 results = skinResults.Ptr()
             };
-            handle = jobStruct.ScheduleRefBurst(clip.head.bonesCount, 16);
+            handle = jobStruct.ScheduleRefBurst(clip.head.bonesCount, max(1, clip.head.bonesCount / 4));
         }
 
         public override void FinishJob()
         {
+            if (!play) return;
             ComputeBuffer temp = verticesBuffer;
             verticesBuffer = lastVerticesBuffer;
             lastVerticesBuffer = temp;

@@ -75,7 +75,7 @@ namespace MPipeline
                 cullResult = gbufferCullResults,
                 frustumPlanes = (float4*)proper.frustumPlanes.Ptr(),
                 indexBuffer = CustomDrawRequest.drawGBufferList
-            }.Schedule(CustomDrawRequest.drawGBufferList.Length, 32);
+            }.Schedule(CustomDrawRequest.drawGBufferList.Length, max(1, CustomDrawRequest.drawGBufferList.Length / 4));
         }
 
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)

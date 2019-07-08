@@ -127,7 +127,7 @@ namespace MPipeline
                 albedoAtlasSize = atlasWidth,
                 normalAtlasSize = atlasHeight,
             };
-            handle = cullJob.ScheduleRefBurst(Decal.allDecalCount, 32);
+            handle = cullJob.ScheduleRefBurst(Decal.allDecalCount, max(1, Decal.allDecalCount / 4));
             handle = new DecalSortJob
             {
                 compares = decalCompareResults.Ptr(),

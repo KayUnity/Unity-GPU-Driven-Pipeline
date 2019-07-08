@@ -69,7 +69,7 @@ ENDCG
         Stencil
         {
             Ref 1
-            ReadMask 1
+            ReadMask 15
             Pass keep
             Comp LEqual
         }
@@ -108,7 +108,7 @@ ENDCG
         Stencil
         {
             Ref 1
-            ReadMask 1
+            ReadMask 15
             Pass keep
             Comp LEqual
         }
@@ -141,7 +141,7 @@ ENDCG
         Stencil
         {
             Ref 1
-            ReadMask 1
+            ReadMask 15
             Pass keep
             Comp LEqual
         }

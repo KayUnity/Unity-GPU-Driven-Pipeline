@@ -16,15 +16,15 @@ MonoBehaviour:
   backgroundCubemap: {fileID: 8900000, guid: a99e011b81190fb4eb9cd04d2e217abc, type: 3}
   availiableDistance: 100
   ssrEvents:
-    enabled: 0
+    enabled: 1
     Thickness: 0.3
-    brdfBias: 0.55
+    brdfBias: 0.7
     ScreenFade: 0
     HiZ_RaySteps: 64
     HiZ_MaxLevel: 4
     HiZ_StartLevel: 1
     HiZ_StopLevel: 0
-    DynamicTemporalWeight: 0.85
+    DynamicTemporalWeight: 0.8
     StaticTemporalWeight: 0.97
-    MaximumAllowedTemporalDepthBias: 5
+    MaximumAllowedTemporalDepthBias: 1
     RunTimeDebugMod: 1

@@ -48,8 +48,9 @@ namespace MPipeline
         public Dictionary<Type, IPerCameraData> allDatas = new Dictionary<Type, IPerCameraData>(17);
         public bool inverseRender = false;
         public RenderTargetIdentifier cameraTarget = BuiltinRenderTextureType.CameraTarget;
-        public static NativeDictionary<int, UIntPtr, IntEqual> allCamera;
         private Dictionary<Type, CommandBuffer> commandBuffers = new Dictionary<Type, CommandBuffer>(10);
+        public static List<PipelineCamera> allCameras = new List<PipelineCamera>(10);
+        private int index = -1;
         [HideInInspector]
         public float[] layerCullDistance = new float[32];
 
@@ -72,23 +73,20 @@ namespace MPipeline
             }
             return bf;
         }
-
         private void OnEnable()
         {
-            if (!allCamera.isCreated)
-            {
-                allCamera = new NativeDictionary<int, UIntPtr, IntEqual>(17, Allocator.Persistent, new IntEqual());
-            }
-            allCamera.Add(gameObject.GetInstanceID(), new UIntPtr(MUnsafeUtility.GetManagedPtr(this)));
+            index = allCameras.Count;
+            allCameras.Add(this);
             GetComponent<Camera>().layerCullDistances = layerCullDistance;
         }
 
         private void OnDisable()
         {
-            allCamera.Remove(gameObject.GetInstanceID());
-            if (allCamera.Length <= 0)
+            if(index >= 0)
             {
-                allCamera.Dispose();
+                allCameras[index] = allCameras[allCameras.Count - 1];
+                allCameras[index].index = index;
+                allCameras.RemoveAt(allCameras.Count - 1);
             }
         }
         private void OnDestroy()

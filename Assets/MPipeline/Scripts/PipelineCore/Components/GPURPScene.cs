@@ -43,10 +43,10 @@ namespace MPipeline
         }
 
         public int targetVolume = 0;
-        private void Update()
+       /* private void Update()
         {
             SceneController.Update(this);
-        }
+        }*/
 
         private void OnDestroy()
         {

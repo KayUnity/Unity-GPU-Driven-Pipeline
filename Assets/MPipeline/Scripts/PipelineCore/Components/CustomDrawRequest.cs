@@ -6,6 +6,10 @@ namespace MPipeline
 {
     public abstract unsafe class CustomDrawRequest : MonoBehaviour
     {
+        public struct ObjectContainer
+        {
+            public CustomDrawRequest obj;
+        }
         private static int AddToList(List<CustomDrawRequest> targetLst, CustomDrawRequest ths)
         {
             int index = targetLst.Count;
@@ -13,7 +17,7 @@ namespace MPipeline
             return index;
         }
 
-        private static int AddToList(NativeList_Int targetLst, int targetInd)
+        private static int AddToList(NativeList_ulong targetLst, ulong targetInd)
         {
             int index = targetLst.Length;
             targetLst.Add(targetInd);
@@ -28,11 +32,11 @@ namespace MPipeline
             return cdr;
         }
 
-        private static int RemoveFromList(NativeList_Int targetLst, int targetIndex)
+        private static ulong RemoveFromList(NativeList_ulong targetLst, int targetIndex)
         {
             targetLst[targetIndex] = targetLst[targetLst.Length - 1];
-            int cdr = targetLst[targetIndex];
-            targetLst.RemoveAt(targetLst.Length - 1);
+            ulong cdr = targetLst[targetIndex];
+            targetLst.RemoveLast();
             return cdr;
         }
         protected virtual void OnEnableFunc() { }
@@ -46,51 +50,63 @@ namespace MPipeline
         public virtual void DrawShadow(CommandBuffer buffer) { }
         public virtual void DrawMotionVector(CommandBuffer buffer) { }
         public virtual void DrawTransparent(CommandBuffer buffer) { }
-        public static NativeList_Int drawGBufferList;
-        public static NativeList_Int drawShadowList;
-        public static NativeList_Int drawTransparentList;
-        private static bool initialized = false;
-        public static List<CustomDrawRequest> allEvents = new List<CustomDrawRequest>(30);
+        public static NativeList_ulong drawGBufferList { get; private set; }
+        public static NativeList_ulong drawShadowList { get; private set; }
+        public static NativeList_ulong drawTransparentList { get; private set; }
+        public static List<CustomDrawRequest> allEvents { get; private set; }
         private int gbufferIndex, shadowIndex, mvIndex, transIndex;
-        private int index;
+        public int index { get; private set; }
         private bool drawGBuffer, drawShadow, drawTransparent;
+        private static bool initialized = false;
         public static void Initialize()
         {
             if (initialized) return;
             initialized = true;
-            drawGBufferList = new NativeList_Int(30, Unity.Collections.Allocator.Persistent);
-            drawShadowList = new NativeList_Int(30, Unity.Collections.Allocator.Persistent);
-            drawTransparentList = new NativeList_Int(30, Unity.Collections.Allocator.Persistent);
+            drawGBufferList = new NativeList_ulong(30, Unity.Collections.Allocator.Persistent);
+            drawShadowList = new NativeList_ulong(30, Unity.Collections.Allocator.Persistent);
+            drawTransparentList = new NativeList_ulong(30, Unity.Collections.Allocator.Persistent);
+            allEvents = new List<CustomDrawRequest>(30);
         }
         private void OnEnable()
         {
             Initialize();
             DrawCommand(out drawGBuffer, out drawShadow, out drawTransparent);
             index = AddToList(allEvents, this);
-            if (drawGBuffer) gbufferIndex = AddToList(drawGBufferList, index);
-            if (drawShadow) shadowIndex = AddToList(drawShadowList, index);
-            if (drawTransparent) transIndex = AddToList(drawTransparentList, index);
+            if (drawGBuffer) gbufferIndex = AddToList(drawGBufferList, (ulong)MUnsafeUtility.GetManagedPtr(this));
+            if (drawShadow) shadowIndex = AddToList(drawShadowList, (ulong)MUnsafeUtility.GetManagedPtr(this));
+            if (drawTransparent) transIndex = AddToList(drawTransparentList, (ulong)MUnsafeUtility.GetManagedPtr(this));
             OnEnableFunc();
+        }
+        public static void Dispose()
+        {
+            drawGBufferList.Dispose();
+            drawShadowList.Dispose();
+            drawTransparentList.Dispose();
+            allEvents = null;
+            initialized = false;
         }
         private void OnDisable()
         {
-            if (drawGBuffer)
+            if (initialized)
             {
-                var a = RemoveFromList(drawGBufferList, index);
-                allEvents[a].gbufferIndex = gbufferIndex;
+                if (drawGBuffer)
+                {
+                    var a = RemoveFromList(drawGBufferList, gbufferIndex);
+                    MUnsafeUtility.GetObject<CustomDrawRequest>((void*)a).gbufferIndex = gbufferIndex;
+                }
+                if (drawShadow)
+                {
+                    var a = RemoveFromList(drawShadowList, shadowIndex);
+                    MUnsafeUtility.GetObject<CustomDrawRequest>((void*)a).shadowIndex = shadowIndex;
+                }
+                if (drawTransparent)
+                {
+                    var a = RemoveFromList(drawTransparentList, transIndex);
+                    MUnsafeUtility.GetObject<CustomDrawRequest>((void*)a).transIndex = transIndex;
+                }
+                var b = RemoveFromList(allEvents, index);
+                b.index = index;
             }
-            if (drawShadow)
-            {
-                var a = RemoveFromList(drawShadowList, index);
-                allEvents[a].shadowIndex = shadowIndex;
-            }
-            if (drawTransparent)
-            {
-                var a = RemoveFromList(drawTransparentList, index);
-                allEvents[a].transIndex = transIndex;
-            }
-            var b = RemoveFromList(allEvents, index);
-            b.index = index;
         }
     }
 }

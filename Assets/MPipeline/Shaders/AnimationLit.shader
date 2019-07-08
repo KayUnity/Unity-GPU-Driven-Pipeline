@@ -53,7 +53,7 @@ pass
 	Stencil
 	{
 		Ref [_LightingModel]
-		WriteMask 1
+		WriteMask 15
 		Pass replace
 		comp always
 	}

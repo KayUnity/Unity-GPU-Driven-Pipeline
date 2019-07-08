@@ -22,7 +22,7 @@ public class TextureCombiner : ScriptableWizard
     private void OnWizardCreate()
     {
         Texture2DArray arr = new Texture2DArray(textures[0].width, textures[0].height, textures.Length, textures[0].format, false, true);
-        for(int i = 0; i < textures.Length; ++i)
+        for (int i = 0; i < textures.Length; ++i)
         {
             arr.SetPixels(textures[i].GetPixels(), i);
         }
@@ -30,7 +30,7 @@ public class TextureCombiner : ScriptableWizard
         AssetDatabase.CreateAsset(arr, path + fileName + ".asset");
     }
 }
-    public class CombineMesh : ScriptableWizard
+public class CombineMesh : ScriptableWizard
 {
     [MenuItem("MPipeline/Combine Mesh")]
     private static void CreateWizard()
@@ -105,6 +105,66 @@ public class TextureCombiner : ScriptableWizard
         for (int i = 1; i < renderers.Count; ++i)
         {
             DestroyImmediate(renderers[i].gameObject);
+        }
+    }
+}
+public class ColliderClear : ScriptableWizard
+{
+    [MenuItem("MPipeline/Collider Cleaner")]
+    private static void CreateWizard()
+    {
+        DisplayWizard<ColliderClear>("Collider", "Clean");
+    }
+    private void OnWizardCreate()
+    {
+        Transform[] trans = Selection.GetTransforms(SelectionMode.Unfiltered);
+        foreach(var t in trans)
+        {
+            Collider[] cs = t.GetComponentsInChildren<Collider>();
+            foreach(var c in cs)
+            {
+                DestroyImmediate(c);
+            }
+        }
+    }
+}
+
+public class ColliderHelper : EditorWindow
+{
+    [MenuItem("MPipeline/Collider Helper")]
+    private static void CreateWizard()
+    {
+        ColliderHelper window = (ColliderHelper)GetWindow(typeof(ColliderHelper));
+        window.Show();
+    }
+    [SerializeField]
+    private Transform parent;
+    private void OnGUI()
+    {
+        parent = (Transform)EditorGUILayout.ObjectField("Parent", parent, typeof(Transform), true);
+        
+        Transform[] trans = Selection.GetTransforms(SelectionMode.Unfiltered);
+        if(GUILayout.Button("Disable Without"))
+        {
+            Transform[] ts = parent.GetComponentsInChildren<Transform>(true);
+            foreach(var i in ts)
+            {
+                i.gameObject.SetActive(false);
+            }
+            foreach(var i in trans)
+            {
+                i.gameObject.SetActive(true);
+            }
+            parent.gameObject.SetActive(true);
+        }
+        if(GUILayout.Button("Enable All"))
+        {
+            Transform[] ts = parent.GetComponentsInChildren<Transform>(true);
+            foreach (var i in ts)
+            {
+                i.gameObject.SetActive(true);
+            }
+            parent.gameObject.SetActive(true);
         }
     }
 }

@@ -73,6 +73,11 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
     {
         return 1.0 / (_ZBufferParams.z * z + _ZBufferParams.w);
     }
+
+    inline float2 Linear01Depth( float2 z )
+{
+    return 1.0 / (_ZBufferParams.x * z + _ZBufferParams.y);
+}
     float Luma4(float3 Color)
     {
         return (Color.g * 2) + (Color.r + Color.b);
@@ -273,8 +278,8 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
         depthAdaptiveForce = min(depthAdaptiveForce, PrevColor.w);
         depthAdaptiveForce = lerp(depthAdaptiveForce, 1, VelocityWeight);
         depthAdaptiveForce = lerp(depthAdaptiveForce, 1, LastVelocityWeight);
-        PrevColor.xyz =  lerp(PrevColor.xyz, YCoCgToRGB( ClipToAABB( RGBToYCoCg(PrevColor.xyz), minColor.xyz, maxColor.xyz )), depthAdaptiveForce);
-
+        PrevColor.xyz =  lerp(PrevColor.xyz, YCoCgToRGB( ClipToAABB( RGBToYCoCg(PrevColor.xyz), minColor.xyz, maxColor.xyz )), lerp(depthAdaptiveForce, 1, Linear01Depth(depth) > 0.9999));
+        
         // HistoryBlend
       
         float HistoryWeight = lerp(_FinalBlendParameters.x, _FinalBlendParameters.y, VelocityWeight);

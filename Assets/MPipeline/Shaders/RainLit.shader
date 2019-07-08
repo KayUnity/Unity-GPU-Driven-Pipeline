@@ -12,7 +12,7 @@
 		_MainTex ("Albedo (RGB)DetailMask(A)", 2D) = "white" {}
 		[NoScaleOffset]_BumpMap("Normal Map", 2D) = "bump" {}
 		[NoScaleOffset]_SpecularMap("R(Smooth)G(Spec)B(Occ)", 2D) = "white"{}
-		[NoScaleOffset]_DetailAlbedo("Detail Albedo", 2D) = "white"{}
+		_DetailAlbedo("Detail Albedo", 2D) = "white"{}
 		[NoScaleOffset]_DetailNormal("Detail Normal", 2D) = "bump"{}
 		_EmissionMultiplier("Emission Multiplier", Range(0, 128)) = 1
 		_EmissionColor("Emission Color", Color) = (0,0,0,1)
@@ -58,7 +58,7 @@ pass
 	Stencil
 	{
 		Ref [_LightingModel]
-		WriteMask 1
+		WriteMask 15
 		Pass replace
 		comp always
 	}

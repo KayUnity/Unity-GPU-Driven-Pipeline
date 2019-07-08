@@ -146,28 +146,27 @@ namespace MPipeline
         [NativeDisableUnsafePtrRestriction]
         public float4* frustumPlanes;
         [NativeDisableUnsafePtrRestriction]
-        public NativeList_Int indexBuffer;
-        public static void ExecuteInList(NativeList_Int cullResult, float4* frustumPlanes, NativeList_Int indexbuffer)
+        public NativeList_ulong indexBuffer;
+        public static void ExecuteInList(NativeList_Int cullResult, float4* frustumPlanes, NativeList_ulong indexBuffer)
         {
             List<CustomDrawRequest> allEvent = CustomDrawRequest.allEvents;
-            for (int i = 0; i < indexbuffer.Length; ++i)
+            for (int i = 0; i < indexBuffer.Length; ++i)
             {
-                int index = indexbuffer[i];
-                CustomDrawRequest cdr = allEvent[index];
-                if (cdr.Cull(frustumPlanes))
+                CustomDrawRequest.ObjectContainer ct = new CustomDrawRequest.ObjectContainer();
+                *(ulong*)UnsafeUtility.AddressOf(ref ct) = indexBuffer[i];
+                if (ct.obj.Cull(frustumPlanes))
                 {
-                    cullResult.Add(index);
+                    cullResult.ConcurrentAdd(ct.obj.index);
                 }
             }
         }
         public void Execute(int index)
         {
-            List<CustomDrawRequest> allEvent = CustomDrawRequest.allEvents;
-            index = indexBuffer[index];
-            CustomDrawRequest cdr = allEvent[index];
-            if (cdr.Cull(frustumPlanes))
+            CustomDrawRequest.ObjectContainer ct = new CustomDrawRequest.ObjectContainer();
+            *(ulong*)UnsafeUtility.AddressOf(ref ct) = indexBuffer[index];
+            if (ct.obj.Cull(frustumPlanes))
             {
-                cullResult.ConcurrentAdd(index);
+                cullResult.ConcurrentAdd(ct.obj.index);
             }
         }
     }

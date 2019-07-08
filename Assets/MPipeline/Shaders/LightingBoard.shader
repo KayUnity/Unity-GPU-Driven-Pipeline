@@ -43,7 +43,7 @@
 	    Stencil
 	    {
 		    Ref 0
-		    WriteMask 1
+		    WriteMask 15
 		    Pass replace
 		    comp always
 	    }

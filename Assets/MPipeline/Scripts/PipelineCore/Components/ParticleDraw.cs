@@ -117,6 +117,7 @@ namespace MPipeline
             drawShadow = false;
             drawTransparent = false;
         }
+        
         public override void FinishJob()
         {
             CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;

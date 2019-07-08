@@ -213,7 +213,7 @@ float4 ScreenSpaceReflection_Temporalfilter(PixelInput i) : SV_Target
 	/////Combine TemporalColor
 	float2 Temporal_BlendWeight = TemporalWeight;
 	Temporal_BlendWeight.x = lerp(Temporal_BlendWeight.x, Temporal_BlendWeight.y, saturate(length(Depth_Velocity) * 1500));
-	Temporal_BlendWeight.x *= saturate(1 - (smoothness - 0.95) * 12);
+	Temporal_BlendWeight.x *= saturate(1 - (smoothness - 0.95) * 3);
 	float3 diff = currentWorldPos.xyz - lastWorldPos.xyz;
 	float4 ReflectionColor = lerp(SSR_CurrColor, SSR_PrevColor, Temporal_BlendWeight.x * (dot(diff, diff) < ( MaximumBiasAllowed *  MaximumBiasAllowed)));
 	return ReflectionColor;

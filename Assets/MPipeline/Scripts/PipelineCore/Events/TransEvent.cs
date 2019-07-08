@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Unity.Jobs;
 using Unity.Mathematics;
+using static Unity.Mathematics.math;
 using UnityEngine.Experimental.Rendering;
 namespace MPipeline
 {
@@ -37,7 +38,7 @@ namespace MPipeline
                 cullResult = customCullResults,
                 frustumPlanes = (float4*)proper.frustumPlanes.Ptr(),
                 indexBuffer = CustomDrawRequest.drawTransparentList
-            }.Schedule(CustomDrawRequest.drawTransparentList.Length, 32);
+            }.Schedule(CustomDrawRequest.drawTransparentList.Length, max(1, CustomDrawRequest.drawTransparentList.Length / 4));
         }
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)
         {

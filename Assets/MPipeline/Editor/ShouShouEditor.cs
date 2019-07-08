@@ -22,7 +22,7 @@ public class ShouShouEditor : ShaderGUI
         LightingModelType currentType = (LightingModelType)targetMat.GetInt("_LightingModel");
         currentType = (LightingModelType)EditorGUILayout.EnumPopup("Lighting Model", currentType);
         Undo.RecordObject(targetMat, targetMat.name);
-        targetMat.SetInt("_LightingModel", currentType == LightingModelType.Unlit ? 0 : 1);
+        targetMat.SetInt("_LightingModel", (int)currentType);
         if (currentType != LightingModelType.Unlit)
         {
             targetMat.EnableKeyword("LIT_ENABLE");
