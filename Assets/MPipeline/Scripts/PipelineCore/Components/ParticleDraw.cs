@@ -111,7 +111,7 @@ namespace MPipeline
         protected override void DrawCommand(out bool drawGBuffer, out bool drawShadow, out bool drawTransparent)
         {
             drawGBuffer = true;
-            drawShadow = true;
+            drawShadow = false;
             drawTransparent = false;
         }
         
