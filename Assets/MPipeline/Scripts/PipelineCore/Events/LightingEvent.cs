@@ -76,6 +76,8 @@ namespace MPipeline
         private Material minMaxBoundMat;
         private const bool useTBDR = false;
         public DecalEvent decalEvt;
+        private JobHandle spotLightCustomCullHandle;
+        private JobHandle pointLightCustomCullHandle;
         protected override void Init(PipelineResources resources)
         {
             proper = RenderPipeline.GetEvent<PropertySetEvent>();
@@ -175,6 +177,8 @@ namespace MPipeline
             spotLightArray = new NativeArray<SpotLight>(visLights.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             cubemapVPMatrices = new NativeList<CubemapViewProjMatrix>(CBDRSharedData.MAXIMUMPOINTLIGHTCOUNT, Allocator.Temp);
             spotLightMatrices = new NativeList<SpotLightMatrix>(CBDRSharedData.MAXIMUMSPOTLIGHTCOUNT, Allocator.Temp);
+            NativeList_ulong allSpotCustomCullResults = new NativeList_ulong(CBDRSharedData.MAXIMUMSPOTLIGHTCOUNT, Allocator.Temp);
+            NativeList_ulong allPointCustomCullResults = new NativeList_ulong(CBDRSharedData.MAXIMUMPOINTLIGHTCOUNT, Allocator.Temp);
             LightFilter.allLights = allLights;
             LightFilter.pointLightArray = pointLightArray;
             LightFilter.spotLightArray = spotLightArray;
@@ -188,8 +192,20 @@ namespace MPipeline
                 camPos = cam.cam.transform.position,
                 shadowDist = shadowDist,
                 lightDist = cbdrDistance,
-                needCheckLight = needCheckedShadows
+                needCheckLight = needCheckedShadows,
+                allSpotCustomDrawRequests = allSpotCustomCullResults,
+                allPointCustomDrawRequests = allPointCustomCullResults
             }).Schedule(allLights.Count, max(1, allLights.Count / 4), shadowCullHandle);
+            spotLightCustomCullHandle = new SpotLightCull
+            {
+                ptrs = allSpotCustomCullResults,
+                drawShadowList = CustomDrawRequest.drawShadowList
+            }.Schedule(CBDRSharedData.MAXIMUMSPOTLIGHTCOUNT, max(1, CBDRSharedData.MAXIMUMSPOTLIGHTCOUNT / 2), lightingHandle);
+            pointLightCustomCullHandle = new PointLightCull
+            {
+                ptrs = allPointCustomCullResults,
+                drawShadowList = CustomDrawRequest.drawShadowList
+            }.Schedule(CBDRSharedData.MAXIMUMPOINTLIGHTCOUNT, max(1, CBDRSharedData.MAXIMUMPOINTLIGHTCOUNT / 2), lightingHandle);
             if (SunLight.current != null && SunLight.current.enabled && SunLight.current.enableShadow)
             {
                 clipDistances = (float*)UnsafeUtility.Malloc(SunLight.CASCADECLIPSIZE * sizeof(float), 16, Allocator.Temp);
@@ -284,6 +300,7 @@ namespace MPipeline
             int count = Mathf.Min(cubemapVPMatrices.Length, CBDRSharedData.MAXIMUMPOINTLIGHTCOUNT);
             cbdr.pointshadowCount = count;
             //Calculate PointLight Shadow
+            pointLightCustomCullHandle.Complete();
             if (LightFilter.pointLightCount > 0)
             {
                 if (count > 0)
@@ -325,6 +342,7 @@ namespace MPipeline
             count = Mathf.Min(spotLightMatrices.Length, CBDRSharedData.MAXIMUMSPOTLIGHTCOUNT);
             cbdr.spotShadowCount = count;
             //Calculate Spotlight Shadow
+            spotLightCustomCullHandle.Complete();
             if (LightFilter.spotLightCount > 0)
             {
                 if (count > 0)
@@ -556,13 +574,15 @@ namespace MPipeline
             public float3 camPos;
             public float shadowDist;
             public float lightDist;
+            public NativeList_ulong allSpotCustomDrawRequests;
+            public NativeList_ulong allPointCustomDrawRequests;
             public static void Clear()
             {
                 pointLightCount = 0;
                 spotLightCount = 0;
                 allLights = null;
             }
-            public static void CalculateCubemapMatrix(PointLightStruct* allLights, CubemapViewProjMatrix* allMatrix, int index, bool cull)
+            public void CalculateCubemapMatrix(PointLightStruct* allLights, CubemapViewProjMatrix* allMatrix, int index, bool cull)
             {
 
                 ref CubemapViewProjMatrix cube = ref allMatrix[index];
@@ -625,7 +645,8 @@ namespace MPipeline
                     cube.frustumPlanes[4] = MathLib.GetPlane(float3(0, 0, 1), str.sphere.xyz + float3(0, 0, str.sphere.w));
                     cube.frustumPlanes[5] = MathLib.GetPlane(float3(0, 0, -1), str.sphere.xyz + float3(0, 0, -str.sphere.w));
                     cube.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.TempJob);
-                    CustomRendererCullJob.ExecuteInList(cube.customCulledResult, cube.frustumPlanes, CustomDrawRequest.drawShadowList);
+                    allPointCustomDrawRequests.ConcurrentAdd((ulong)cube.Ptr());
+                    //
                 }
                 else
                 {
@@ -633,7 +654,7 @@ namespace MPipeline
                     cube.frustumPlanes = null;
                 }
             }
-            public static void CalculatePersMatrix(SpotLight* allLights, SpotLightMatrix* projectionMatrices, int index, bool cull)
+            public void CalculatePersMatrix(SpotLight* allLights, SpotLightMatrix* projectionMatrices, int index, bool cull)
             {
                 ref SpotLightMatrix matrices = ref projectionMatrices[index];
                 int2 shadowIndex = matrices.index;
@@ -652,9 +673,9 @@ namespace MPipeline
                 if (cull)
                 {
                     matrices.customCulledResult = new NativeList_Int(CustomDrawRequest.drawShadowList.Length, Allocator.TempJob);
-                    float4* frustumPlanes = stackalloc float4[6];
+                    allSpotCustomDrawRequests.ConcurrentAdd((ulong)matrices.Ptr());
+                    float4* frustumPlanes = matrices.frustumPlane0.Ptr();
                     PipelineFunctions.GetFrustumPlanes(ref cam, frustumPlanes);
-                    CustomRendererCullJob.ExecuteInList(matrices.customCulledResult, frustumPlanes, CustomDrawRequest.drawShadowList);
                 }
                 else
                 {
@@ -772,6 +793,33 @@ namespace MPipeline
 
                 }
             }
+        }
+        [Unity.Burst.BurstCompile]
+        private unsafe struct SpotLightCull : IJobParallelFor
+        {
+            public NativeList_ulong ptrs;
+            public NativeList_ulong drawShadowList;
+            public void Execute(int index)
+            {
+                if (index >= ptrs.Length) return;
+                SpotLightMatrix* mat = (SpotLightMatrix*)ptrs[index];
+                CustomRendererCullJob.ExecuteInList(mat->customCulledResult, &mat->frustumPlane0, drawShadowList);
+            }
+            
+        }
+
+        [Unity.Burst.BurstCompile]
+        private unsafe struct PointLightCull : IJobParallelFor
+        {
+            public NativeList_ulong ptrs;
+            public NativeList_ulong drawShadowList;
+            public void Execute(int index)
+            {
+                if (index >= ptrs.Length) return;
+                CubemapViewProjMatrix* mat = (CubemapViewProjMatrix*)ptrs[index];
+                CustomRendererCullJob.ExecuteInList(mat->customCulledResult, mat->frustumPlanes, drawShadowList);
+            }
+
         }
     }
 }

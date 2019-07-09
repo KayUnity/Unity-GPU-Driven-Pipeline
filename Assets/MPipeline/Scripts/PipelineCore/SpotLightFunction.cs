@@ -35,5 +35,11 @@ namespace MPipeline
         public Matrix4x4 projectionMatrix;
         public Matrix4x4 worldToCamera;
         public NativeList_Int customCulledResult;
+        public float4 frustumPlane0;
+        public float4 frustumPlane1;
+        public float4 frustumPlane2;
+        public float4 frustumPlane3;
+        public float4 frustumPlane4;
+        public float4 frustumPlane5;
     }
 }

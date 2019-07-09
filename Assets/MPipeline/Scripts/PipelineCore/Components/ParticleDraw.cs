@@ -105,10 +105,13 @@ namespace MPipeline
         {
             DrawPass(buffer, 0);
         }
+        public override void DrawShadow(CommandBuffer buffer)
+        {
+        }
         protected override void DrawCommand(out bool drawGBuffer, out bool drawShadow, out bool drawTransparent)
         {
             drawGBuffer = true;
-            drawShadow = false;
+            drawShadow = true;
             drawTransparent = false;
         }
         
