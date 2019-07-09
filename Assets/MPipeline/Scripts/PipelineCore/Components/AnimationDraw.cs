@@ -23,7 +23,6 @@ namespace MPipeline
         private ComputeBuffer bonesBuffer;
         private List<ComputeBuffer> triangleBuffers;
         private Material[] allMats;
-        private float4x4 localMatrix;
         private NativeArray<float3x4> skinResults;
         private JobHandle handle;
         private ComputeShader skinShader;
@@ -33,8 +32,6 @@ namespace MPipeline
         public bool play = false;
         public bool autoReplay;
         
-        public Vector3 boundingBoxPosition = Vector3.zero;
-        public Vector3 boundingBoxExtents = new Vector3(0.5f, 0.5f, 0.5f);
         private Transform[] bones;
         private Matrix4x4[] bindArr;
         struct Vertex
@@ -164,10 +161,6 @@ namespace MPipeline
                 lstRecord = null;
             }
         }
-        public override bool Cull(float4* frustumPlanes)
-        {
-            return MathLib.BoxIntersect(ref localMatrix, boundingBoxPosition, boundingBoxExtents, frustumPlanes, 6);
-        }
         private void DrawPass(CommandBuffer buffer, int pass)
         {
             buffer.SetGlobalBuffer(ShaderIDs.verticesBuffer, verticesBuffer);
@@ -200,7 +193,7 @@ namespace MPipeline
         BonesTransform jobStruct;
         public override void PrepareJob(PipelineResources resources)
         {
-            localMatrix = transform.localToWorldMatrix;
+            localToWorldMatrix = transform.localToWorldMatrix;
             skinShader = resources.shaders.gpuSkin;
             if (!play) return;
             AnimationClip clip = lstRecord[clipIndex];

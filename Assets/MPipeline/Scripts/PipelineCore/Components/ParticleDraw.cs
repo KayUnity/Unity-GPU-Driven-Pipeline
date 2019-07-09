@@ -39,10 +39,8 @@ namespace MPipeline
         private ComputeBuffer lastPosBuffer;
         private ComputeBuffer originPosBuffer;
         private ComputeBuffer verticesBuffer;
-        private float4x4 localMatrix;
         private float offset;
-        public Vector3 boundingBoxPosition = Vector3.zero;
-        public Vector3 boundingBoxExtents = new Vector3(0.5f, 0.5f, 0.5f);
+        
         struct Vertex
         {
             public float4 tangent;
@@ -58,7 +56,7 @@ namespace MPipeline
         }
         protected override void OnEnableFunc()
         {
-            localMatrix = transform.localToWorldMatrix;
+            localToWorldMatrix = transform.localToWorldMatrix;
         }
 
         private void Awake()
@@ -96,10 +94,6 @@ namespace MPipeline
             currentPosBuffer.Dispose();
             lastPosBuffer.Dispose();
             originPosBuffer.Dispose();
-        }
-        public override bool Cull(float4* frustumPlanes)
-        {
-            return MathLib.BoxIntersect(ref localMatrix, boundingBoxPosition, boundingBoxExtents, frustumPlanes, 6);
         }
         private void DrawPass(CommandBuffer buffer, int targetPass)
         {

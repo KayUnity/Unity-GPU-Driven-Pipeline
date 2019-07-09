@@ -140,6 +140,7 @@ namespace MPipeline
         {
         }
     }
+    [Unity.Burst.BurstCompile]
     public unsafe struct CustomRendererCullJob : IJobParallelFor
     {
         public NativeList_Int cullResult;
@@ -149,25 +150,19 @@ namespace MPipeline
         public NativeList_ulong indexBuffer;
         public static void ExecuteInList(NativeList_Int cullResult, float4* frustumPlanes, NativeList_ulong indexBuffer)
         {
-            List<CustomDrawRequest> allEvent = CustomDrawRequest.allEvents;
             for (int i = 0; i < indexBuffer.Length; ++i)
             {
-                CustomDrawRequest.ObjectContainer ct = new CustomDrawRequest.ObjectContainer();
-                *(ulong*)UnsafeUtility.AddressOf(ref ct) = indexBuffer[i];
-                if (ct.obj.Cull(frustumPlanes))
-                {
-                    cullResult.ConcurrentAdd(ct.obj.index);
-                }
+                CustomDrawRequest.ComponentData* dataPtr = (CustomDrawRequest.ComponentData*)indexBuffer[i];
+                if(MathLib.BoxIntersect(ref dataPtr->localToWorldMatrix, dataPtr->boundingBoxPosition, dataPtr->boundingBoxExtents, frustumPlanes, 6))
+                    cullResult.ConcurrentAdd(dataPtr->index);
+                  
             }
         }
         public void Execute(int index)
         {
-            CustomDrawRequest.ObjectContainer ct = new CustomDrawRequest.ObjectContainer();
-            *(ulong*)UnsafeUtility.AddressOf(ref ct) = indexBuffer[index];
-            if (ct.obj.Cull(frustumPlanes))
-            {
-                cullResult.ConcurrentAdd(ct.obj.index);
-            }
+            CustomDrawRequest.ComponentData* dataPtr = (CustomDrawRequest.ComponentData*)indexBuffer[index];
+            if (MathLib.BoxIntersect(ref dataPtr->localToWorldMatrix, dataPtr->boundingBoxPosition, dataPtr->boundingBoxExtents, frustumPlanes, 6))
+                cullResult.ConcurrentAdd(dataPtr->index);
         }
     }
 }

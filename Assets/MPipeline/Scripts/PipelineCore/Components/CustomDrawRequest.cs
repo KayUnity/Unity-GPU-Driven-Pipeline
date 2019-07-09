@@ -6,9 +6,16 @@ namespace MPipeline
 {
     public abstract unsafe class CustomDrawRequest : MonoBehaviour
     {
-        public struct ObjectContainer
+        public float4x4 localToWorldMatrix;
+        public float3 boundingBoxPosition = Vector3.zero;
+        public float3 boundingBoxExtents = new Vector3(0.5f, 0.5f, 0.5f);
+        private int index, gbufferIndex, shadowIndex, mvIndex, transIndex;
+        public struct ComponentData
         {
-            public CustomDrawRequest obj;
+            public float4x4 localToWorldMatrix;
+            public float3 boundingBoxPosition;
+            public float3 boundingBoxExtents;
+            public int index, gbufferIndex, shadowIndex, mvIndex, transIndex;
         }
         private static int AddToList(List<CustomDrawRequest> targetLst, CustomDrawRequest ths)
         {
@@ -43,7 +50,6 @@ namespace MPipeline
         protected virtual void OnDisableFunc() { }
         public virtual void PrepareJob(PipelineResources resources) { }
         public virtual void FinishJob() { }
-        public abstract bool Cull(float4* frustumPlanes);
         protected abstract void DrawCommand(out bool drawGBuffer, out bool drawShadow, out bool drawTransparent);
         public virtual void DrawDepthPrepass(CommandBuffer buffer) { }
         public virtual void DrawGBuffer(CommandBuffer buffer) { }
@@ -54,8 +60,8 @@ namespace MPipeline
         public static NativeList_ulong drawShadowList { get; private set; }
         public static NativeList_ulong drawTransparentList { get; private set; }
         public static List<CustomDrawRequest> allEvents { get; private set; }
-        private int gbufferIndex, shadowIndex, mvIndex, transIndex;
-        public int index { get; private set; }
+
+
         private bool drawGBuffer, drawShadow, drawTransparent;
         private static bool initialized = false;
         public static void Initialize()
@@ -72,9 +78,9 @@ namespace MPipeline
             Initialize();
             DrawCommand(out drawGBuffer, out drawShadow, out drawTransparent);
             index = AddToList(allEvents, this);
-            if (drawGBuffer) gbufferIndex = AddToList(drawGBufferList, (ulong)MUnsafeUtility.GetManagedPtr(this));
-            if (drawShadow) shadowIndex = AddToList(drawShadowList, (ulong)MUnsafeUtility.GetManagedPtr(this));
-            if (drawTransparent) transIndex = AddToList(drawTransparentList, (ulong)MUnsafeUtility.GetManagedPtr(this));
+            if (drawGBuffer) gbufferIndex = AddToList(drawGBufferList, (ulong)localToWorldMatrix.Ptr());
+            if (drawShadow) shadowIndex = AddToList(drawShadowList, (ulong)localToWorldMatrix.Ptr());
+            if (drawTransparent) transIndex = AddToList(drawTransparentList, (ulong)localToWorldMatrix.Ptr());
             OnEnableFunc();
         }
         public static void Dispose()
@@ -87,22 +93,23 @@ namespace MPipeline
         }
         private void OnDisable()
         {
+            int offset = sizeof(float4x4) + sizeof(float3) + sizeof(float3);
             if (initialized)
             {
                 if (drawGBuffer)
                 {
-                    var a = RemoveFromList(drawGBufferList, gbufferIndex);
-                    MUnsafeUtility.GetObject<CustomDrawRequest>((void*)a).gbufferIndex = gbufferIndex;
+                    var a = (ComponentData*)RemoveFromList(drawGBufferList, gbufferIndex);
+                    a->gbufferIndex = gbufferIndex;
                 }
                 if (drawShadow)
                 {
-                    var a = RemoveFromList(drawShadowList, shadowIndex);
-                    MUnsafeUtility.GetObject<CustomDrawRequest>((void*)a).shadowIndex = shadowIndex;
+                    var a = (ComponentData*)RemoveFromList(drawShadowList, shadowIndex);
+                    a->shadowIndex = shadowIndex;
                 }
                 if (drawTransparent)
                 {
-                    var a = RemoveFromList(drawTransparentList, transIndex);
-                    MUnsafeUtility.GetObject<CustomDrawRequest>((void*)a).transIndex = transIndex;
+                    var a = (ComponentData*)RemoveFromList(drawTransparentList, transIndex);
+                    a->transIndex = transIndex;
                 }
                 var b = RemoveFromList(allEvents, index);
                 b.index = index;
