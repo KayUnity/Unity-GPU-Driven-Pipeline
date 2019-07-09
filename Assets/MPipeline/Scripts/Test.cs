@@ -13,24 +13,30 @@ using UnityEngine.Experimental.Rendering;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
-#if UNITY_EDITOR
 [ExecuteInEditMode]
 public unsafe class Test : MonoBehaviour
 {
-    [EasyButtons.Button]
-    void RunTest()
+    private AsyncOperation aop;
+    private bool loaded;
+    private void Start()
     {
-        NativeList_Int lst = new NativeList_Int(10, Allocator.Temp);
-        for(int i = 0; i < 20; ++i)
+        aop = SceneManager.LoadSceneAsync(1, LoadSceneMode.Additive);
+        loaded = true;
+    }
+    private void Update()
+    {
+        if(aop.isDone)
         {
-            lst.Add(i);
-        }
-        lst.Remove(5);
-        Debug.Log(lst.Length);
-        foreach(var i in lst)
-        {
-            Debug.Log(i);
+            if(loaded)
+            {
+                aop = SceneManager.UnloadSceneAsync(1, UnloadSceneOptions.UnloadAllEmbeddedSceneObjects);
+                loaded = false;
+            }
+            else
+            {
+                aop = SceneManager.LoadSceneAsync(1, LoadSceneMode.Additive);
+                loaded = true;
+            }
         }
     }
 }
-#endif
