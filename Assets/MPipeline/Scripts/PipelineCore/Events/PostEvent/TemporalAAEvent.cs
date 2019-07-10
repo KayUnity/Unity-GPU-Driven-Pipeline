@@ -59,7 +59,7 @@ namespace MPipeline
             RenderTexture historyTex = texComponent.historyTex;
             //TAA Start
             const float kMotionAmplification_Blending = 100f * 60f;
-            const float kMotionAmplification_Bounding = 100f * 20f;
+            const float kMotionAmplification_Bounding = 100f * 30f;
             buffer.SetGlobalFloat(ShaderIDs._Sharpness, sharpness);
             
             buffer.SetGlobalVector(ShaderIDs._TemporalClipBounding, new Vector4(stationaryAABBScale, motionAABBScale, kMotionAmplification_Bounding, 0f));

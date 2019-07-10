@@ -28,6 +28,8 @@ namespace MPipeline
         {
             GPUDeferred, Bake, Unlit
         }
+        public LoadingThread loadingThread;
+        public GPURPScene gpurpScene;
         public PipelineEvent[] availiableEvents;
         public PipelineShaders shaders = new PipelineShaders();
         public PipelineEvent[][] allEvents { get; private set; }

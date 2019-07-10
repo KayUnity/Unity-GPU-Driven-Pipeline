@@ -181,7 +181,8 @@ namespace MPipeline
             {
                 ref DecalData data = ref allDatas[index];
                 float3x3 rotation = float3x3(data.rotation.c0.xyz, data.rotation.c1.xyz, data.rotation.c2.xyz);
-                if (lengthsq(camPos - data.position) < availiableDistanceSqr && MathLib.BoxIntersect(rotation, data.position, frustumPlanes, 6))
+                float dist = data.avaliableDistance * data.avaliableDistance;
+                if (lengthsq(camPos - data.position) < min(dist, availiableDistanceSqr) && MathLib.BoxIntersect(rotation, data.position, frustumPlanes, 6))
                 {
                     int currentInd = System.Threading.Interlocked.Increment(ref count) - 1;
                     ref DecalStrct str = ref decalDatas[currentInd];

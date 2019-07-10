@@ -110,37 +110,13 @@ namespace MPipeline
         }
         //Press number load scene
 
-        public static void Update(MonoBehaviour behavior)
+        public static void Update()
         {
-            /* int value;
-             if (int.TryParse(Input.inputString, out value) && value < testNodeArray.Length)
-             {
-                 Random rd = new Random((uint)Guid.NewGuid().GetHashCode());
-                 addList.Add(testNodeArray[value]);
-                 TerrainQuadTree.QuadTreeNode* node = (TerrainQuadTree.QuadTreeNode*)testNodeArray[value];
-                 if (node->listPosition < 0)
-                 {
-                     NativeArray<float> heightMap = new NativeArray<float>(commonData.terrainDrawStreaming.heightMapSize, Allocator.Temp);
-                     for(int i = 0; i < heightMap.Length; ++i)
-                     {
-                         heightMap[i] = (float)(rd.NextDouble() * 0.2);
-                     }
-                     commonData.terrainDrawStreaming.AddQuadTrees(addList, heightMap);
-
-                 }
-                 else
-                 {
-                     commonData.terrainDrawStreaming.RemoveQuadTrees(addList);
-                 }
-                 addList.Clear();
-             }
-             */
             int value;
             if (int.TryParse(Input.inputString, out value))
             {
                 TransformScene((uint)value);
             }
-
         }
 
         public static void TransformScene(uint value)
@@ -155,6 +131,7 @@ namespace MPipeline
                 else if (str.state == SceneStreaming.State.Unloaded)
                     str.GenerateSync();
                 //behavior.StartCoroutine(str.Generate()); 
+
             }
         }
         private static bool GetBaseBuffer(out PipelineBaseBuffer result)

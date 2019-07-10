@@ -5,7 +5,7 @@ using System.Threading;
 using System;
 namespace MPipeline
 {
-    public sealed class LoadingThread : MonoBehaviour
+    public sealed class LoadingThread
     {
         private struct Command
         {
@@ -19,9 +19,9 @@ namespace MPipeline
         private AutoResetEvent resetEvent;
         private Thread thread;
         private bool isRunning;
-        public void Awake()
+        public void Init()
         {
-            if(current)
+            if(current != null)
             {
                 Debug.LogError("Loading Thread should be singleton!");
                 return;
@@ -72,7 +72,7 @@ namespace MPipeline
             }
         }
 
-        private void OnDestroy()
+        public void Dispose()
         {
             current = null;
             isRunning = false;

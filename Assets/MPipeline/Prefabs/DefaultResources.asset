@@ -13,6 +13,13 @@ MonoBehaviour:
   m_Name: DefaultResources
   m_EditorClassIdentifier: 
   useSRPBatcher: 1
+  gpurpScene:
+    clusterResources: {fileID: 11400000, guid: 5c18b7c9458e3ea488761f9c56016cba, type: 2}
+    offset:
+      x: 0
+      y: 0
+      z: 0
+    targetVolume: 0
   availiableEvents:
   - {fileID: 11400000, guid: cfd7bbc3e9481ec458e874a8577ee260, type: 2}
   - {fileID: 11400000, guid: 2b92438e0f21bc94abd6c4972ddb265a, type: 2}

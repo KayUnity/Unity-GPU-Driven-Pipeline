@@ -115,12 +115,17 @@ namespace MPipeline
         public RenderPipeline(PipelineResources resources)
         {
             current = this;
+            this.resources = resources;
+            if (resources.loadingThread == null) resources.loadingThread = new LoadingThread();
+            if (resources.gpurpScene == null) resources.gpurpScene = new GPURPScene();
+            resources.loadingThread.Init();
+            resources.gpurpScene.Init(resources);
             eventsGuideBook = new NativeDictionary<UIntPtr, int, PtrEqual>(resources.availiableEvents.Length, Allocator.Persistent, new PtrEqual());
             resources.SetRenderingPath();
             var allEvents = resources.allEvents;
             GraphicsUtility.UpdatePlatform();
             MLight.ClearLightDict();
-            this.resources = resources;
+
             CustomDrawRequest.Initialize();
             data.buffer = new CommandBuffer();
             for (int i = 0; i < resources.availiableEvents.Length; ++i)
@@ -164,6 +169,8 @@ namespace MPipeline
                 waitReleaseRT.Dispose();
             }
             catch { }
+            resources.gpurpScene.Dispose();
+            resources.loadingThread.Dispose();
             data.buffer.Dispose();
             var allEvents = resources.allEvents;
             for (int i = 0; i < resources.availiableEvents.Length; ++i)
@@ -206,8 +213,10 @@ namespace MPipeline
             }
             MotionVectorDrawer.ExecuteBeforeFrame(motionVectorMatricesBuffer);
             data.buffer.SetGlobalBuffer(ShaderIDs._LastFrameModel, motionVectorMatricesBuffer);
+            
 #if UNITY_EDITOR
             int tempID = Shader.PropertyToID("_TempRT");
+
             foreach (var pair in bakeList)
             {
                 PipelineCamera pipelineCam = pair.pipelineCamera;

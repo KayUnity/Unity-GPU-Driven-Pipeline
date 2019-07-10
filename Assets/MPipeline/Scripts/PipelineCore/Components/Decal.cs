@@ -21,6 +21,7 @@ namespace MPipeline
             }
         }
         private int index;
+        public float avaliableDistance = 100;
         public int4 albedoScaleOffset = 0;
         public int4 normalScaleOffset = 0;
         public int importance = 0;
@@ -42,7 +43,8 @@ namespace MPipeline
                     normalScaleOffset = normalScaleOffset,
                     importance = importance,
                     comp = MUnsafeUtility.GetManagedPtr(this),
-                    texIndex = int2(albedoIndex, normalIndex)
+                    texIndex = int2(albedoIndex, normalIndex),
+                    avaliableDistance = avaliableDistance
                 });
         }
         [EasyButtons.Button]
@@ -58,6 +60,7 @@ namespace MPipeline
             da.normalScaleOffset = normalScaleOffset;
             da.importance = importance;
             da.texIndex = int2(albedoIndex, normalIndex);
+            da.avaliableDistance = avaliableDistance;
         }
 
         private void OnDisable()

@@ -303,7 +303,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     for(uint c = 0; c < _FogVolumeCount; c++)
     {
         FogVolume vol = _AllFogVolume[c];
-        float3 localPos = mul(vol.worldToLocal, float4(sampleWorldPos, 1)) * 0.5;
+        float3 localPos = mul(vol.worldToLocal, float4(sampleWorldPos, 1));
         bool3 b = abs(localPos) < 0.5;
         if(b.x && b.y && b.z){
             col.rgb += vol.emissionColor;

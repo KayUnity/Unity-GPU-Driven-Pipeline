@@ -155,6 +155,7 @@ namespace MPipeline
         public int4 normalScaleOffset;
         public int importance;
         public int2 texIndex;
+        public float avaliableDistance;
         public void* comp;
     }
 

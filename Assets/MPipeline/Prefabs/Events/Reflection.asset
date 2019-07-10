@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Reflection
   m_EditorClassIdentifier: 
   enabled: 1
-  backgroundCubemap: {fileID: 8900000, guid: a99e011b81190fb4eb9cd04d2e217abc, type: 3}
+  backgroundCubemap: {fileID: 8900000, guid: c9f77ead4bfe62047bc1c72c41f63436, type: 3}
   availiableDistance: 100
   ssrEvents:
     enabled: 1

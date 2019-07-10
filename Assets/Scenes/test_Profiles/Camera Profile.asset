@@ -212,7 +212,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3f6f3f7c722b4544b97e3c75840aa33, type: 3}
   m_Name: AutoExposure
   m_EditorClassIdentifier: 
-  active: 0
+  active: 1
   enabled:
     overrideState: 1
     value: 1
@@ -341,13 +341,13 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 1
-    value: {x: 0.8018956, y: 0.8342711, z: 1, w: 0.059970018}
+    value: {x: 0.9572989, y: 0.97561425, z: 1, w: 0.059970018}
   gamma:
     overrideState: 1
-    value: {x: 0.66445875, y: 0.7060159, z: 1, w: 0}
+    value: {x: 0.9456836, y: 0.9603221, z: 1, w: 0}
   gain:
     overrideState: 1
-    value: {x: 1, y: 0.8795184, z: 0.87951875, w: -0.11994}
+    value: {x: 0.92318577, y: 0.973184, z: 1, w: -0.11994}
   masterCurve:
     overrideState: 0
     value:

@@ -7,9 +7,9 @@ using Unity.Mathematics;
 using static Unity.Mathematics.math;
 namespace MPipeline
 {
-    public class GPURPScene : MonoBehaviour
+    [System.Serializable]
+    public class GPURPScene
     {
-        public PipelineResources resources;
         public ClusterMatResources clusterResources;
         private GPURPScene current;
 
@@ -30,12 +30,11 @@ namespace MPipeline
         }
         private JobHandle jobHandle;
         public float3 offset;
-        private void Awake()
+        public void Init(PipelineResources resources)
         {
             if (current != null)
             {
                 Debug.LogError("GPU RP Scene should be singleton!");
-                Destroy(this);
                 return;
             }
             current = this;
@@ -43,12 +42,8 @@ namespace MPipeline
         }
 
         public int targetVolume = 0;
-       /* private void Update()
-        {
-            SceneController.Update(this);
-        }*/
 
-        private void OnDestroy()
+        public void Dispose()
         {
             SceneController.Dispose();
             current = null;

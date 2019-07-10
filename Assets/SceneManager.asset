@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: SceneManager
   m_EditorClassIdentifier: 
   clusterProperties:
-  - name: CityBuildings
-    clusterCount: 4939
+  - name: TestFile
+    clusterCount: 3041

@@ -273,15 +273,14 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
         }
         float LastVelocityWeight = saturate(sqrt(lastFrameMVLen) * _TemporalClipBounding.z);
         float2 dist = LinearEyeDepth(float2(lastFrameDepth, depth));
-        float depthAdaptiveForce = abs(dist.x - dist.y) < 0.05 ? 1 : 0.3;
+        float depthAdaptiveForce = abs(dist.x - dist.y) < 0.05 ? 1 : 0.1;
         float4 PrevColor = SAMPLE_TEXTURE2D(_HistoryTex, sampler_HistoryTex, PrevCoord);
         depthAdaptiveForce = min(depthAdaptiveForce, PrevColor.w);
         depthAdaptiveForce = lerp(depthAdaptiveForce, 1, VelocityWeight);
         depthAdaptiveForce = lerp(depthAdaptiveForce, 1, LastVelocityWeight);
-        PrevColor.xyz =  lerp(PrevColor.xyz, YCoCgToRGB( ClipToAABB( RGBToYCoCg(PrevColor.xyz), minColor.xyz, maxColor.xyz )), lerp(depthAdaptiveForce, 1, Linear01Depth(depth) > 0.9999));
-        
+        float2 depth01 = Linear01Depth(float2(lastFrameDepth, depth));
+        PrevColor.xyz =  lerp(PrevColor.xyz, YCoCgToRGB( ClipToAABB( RGBToYCoCg(PrevColor.xyz), minColor.xyz, maxColor.xyz )), lerp(depthAdaptiveForce, 1, (depth01.x > 0.9999) || (depth01.y > 0.9999)));
         // HistoryBlend
-      
         float HistoryWeight = lerp(_FinalBlendParameters.x, _FinalBlendParameters.y, VelocityWeight);
         CurrColor.xyz = Tonemap(CurrColor.xyz);
         PrevColor.xyz = Tonemap(PrevColor.xyz);

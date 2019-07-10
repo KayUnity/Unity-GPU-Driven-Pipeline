@@ -20,6 +20,14 @@ namespace MPipeline
         public float volume = 1;
         public Color fogColor = Color.white;
         public Color emissionColor = Color.black;
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.matrix = transform.localToWorldMatrix;
+            Gizmos.color = Color.white;
+            Gizmos.DrawWireCube(new Vector3(0, 0, 0), new Vector3(1, 1, 1));
+            Gizmos.color = new Color(0, 0, 1, 0.3f);
+            Gizmos.DrawCube(new Vector3(0, 0, 0), new Vector3(1, 1, 1));
+        }
         private void OnEnable()
         {
             if (!allVolumes.isCreated)
