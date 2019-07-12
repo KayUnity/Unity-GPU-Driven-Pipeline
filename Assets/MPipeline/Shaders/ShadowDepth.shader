@@ -3,7 +3,7 @@
 	SubShader
 	{
 		ZTest less
-		Cull off
+		Cull back
 		Tags {"RenderType" = "Opaque"}
 		Pass
 		{

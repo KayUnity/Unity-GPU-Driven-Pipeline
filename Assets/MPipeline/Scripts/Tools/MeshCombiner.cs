@@ -16,28 +16,26 @@ namespace MPipeline
     public unsafe class MeshCombiner : MonoBehaviour
     {
 #if UNITY_EDITOR
-        public void GetPoints(NativeList<Point> points, NativeList<int> triangles, Mesh targetMesh, Transform transform)
+        public ClusterMatResources res;
+        public void GetPoints(NativeList<Point> points, Mesh targetMesh, Transform transform)
         {
-            int originLength = points.Length;
             Vector3[] vertices = targetMesh.vertices;
-            points.AddRange(vertices.Length);
-            for (int i = originLength; i < vertices.Length + originLength; ++i)
+            for (int i = 0; i < vertices.Length; ++i)
             {
-                ref float3 pt = ref points[i].position;
-                int len = i - originLength;
-                pt = transform.localToWorldMatrix.MultiplyPoint(vertices[len]);
+                 vertices[i] = transform.localToWorldMatrix.MultiplyPoint(vertices[i]);
                 ///TODO
                 ///Add others
             }
             for (int subCount = 0; subCount < targetMesh.subMeshCount; ++subCount)
             {
                 int[] triangleArray = targetMesh.GetTriangles(subCount);
-                for (int i = 0; i < triangleArray.Length; ++i)
+                foreach(var i in triangleArray)
                 {
-                    triangleArray[i] += originLength;
-                    ref float3 pt = ref points[triangleArray[i]].position;
+                    points.Add(new Point
+                    {
+                        position = vertices[i]
+                    });
                 }
-                triangles.AddRange(triangleArray);
             }
 
         }
@@ -53,16 +51,16 @@ namespace MPipeline
                 {
                     MeshFilter filter = allRenderers[i].GetComponent<MeshFilter>();
                     allFilters.Add(filter);
-                    sumVertexLength += filter.sharedMesh.vertexCount;
+                    sumVertexLength += (int)(filter.sharedMesh.vertexCount * 1.2f);
                 }
             }
             sumTriangleLength = (int)(sumVertexLength * 1.5);
             NativeList<Point> points = new NativeList<Point>(sumVertexLength, Allocator.Temp);
-            NativeList<int> triangles = new NativeList<int>(sumTriangleLength, Allocator.Temp);
+
             for (int i = 0; i < allFilters.Count; ++i)
             {
                 Mesh mesh = allFilters[i].sharedMesh;
-                GetPoints(points, triangles, mesh, allFilters[i].transform);
+                GetPoints(points, mesh, allFilters[i].transform);
             }
             float3 less = points[0].position;
             float3 more = points[0].position;
@@ -84,7 +82,6 @@ namespace MPipeline
             CombinedModel md;
             md.bound = b;
             md.allPoints = points;
-            md.triangles = triangles;
 
             return md;
         }
@@ -92,7 +89,6 @@ namespace MPipeline
         public struct CombinedModel
         {
             public NativeList<Point> allPoints;
-            public NativeList<int> triangles;
             public Bounds bound;
         }
         public string modelName = "TestFile";
@@ -102,7 +98,7 @@ namespace MPipeline
         public void TryThis()
         {
             bool save = false;
-            ClusterMatResources res = Resources.Load<ClusterMatResources>("MapMat/SceneManager");
+            
             if (res == null)
             {
                 save = true;
@@ -139,7 +135,7 @@ namespace MPipeline
                 }
             }
             CombinedModel model = ProcessCluster(GetComponentsInChildren<MeshRenderer>(false), lowLevelDict);
-            property.clusterCount = ClusterGenerator.GenerateCluster(model.allPoints, model.triangles, model.bound, modelName, voxelCount, res.clusterProperties.Count);
+            property.clusterCount = ClusterGenerator.GenerateCluster(model.allPoints, model.bound, modelName, voxelCount, res.clusterProperties.Count);
             res.clusterProperties.Add(property);
             if (save)
                 AssetDatabase.CreateAsset(res, "Assets/SceneManager.asset");

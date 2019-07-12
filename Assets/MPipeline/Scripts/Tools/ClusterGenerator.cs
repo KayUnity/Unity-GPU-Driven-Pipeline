@@ -47,10 +47,10 @@ namespace MPipeline
             }
         }
         /// <returns></returns> Cluster Count
-        public static int GenerateCluster(NativeList<Point> pointsFromMesh, NativeList<int> triangles, Bounds bd, string fileName, int voxelCount, int sceneCount)
+        public static int GenerateCluster(NativeList<Point> pointsFromMesh, Bounds bd, string fileName, int voxelCount, int sceneCount)
         {
             NativeList<Cluster> boxes; NativeList<Point> points;
-            GetCluster(pointsFromMesh, triangles, bd, out boxes, out points, voxelCount);
+            GetCluster(pointsFromMesh, bd, out boxes, out points, voxelCount);
 
             string filenameWithExtent = fileName + ".mpipe";
             byte[] bytes = new byte[boxes.Length * sizeof(Cluster)];
@@ -67,23 +67,23 @@ namespace MPipeline
             return boxes.Length;
         }
 
-        public static void GetCluster(NativeList<Point> pointsFromMesh, NativeList<int> triangles, Bounds bd, out NativeList<Cluster> boxes, out NativeList<Point> points, int voxelCount)
+        public static void GetCluster(NativeList<Point> pointsFromMesh, Bounds bd, out NativeList<Cluster> boxes, out NativeList<Point> points, int voxelCount)
         {
-            NativeList<Triangle> trs = GenerateTriangle(triangles, pointsFromMesh);
+            NativeList<Triangle> trs = GenerateTriangle(pointsFromMesh);
             Voxel[,,] voxels = GetVoxelData(trs, voxelCount, bd);
-            GetClusterFromVoxel(voxels, out boxes, out points, triangles.Length, voxelCount);
+            GetClusterFromVoxel(voxels, out boxes, out points, pointsFromMesh.Length, voxelCount);
         }
 
-        private static NativeList<Triangle> GenerateTriangle(NativeList<int> triangles, NativeList<Point> points)
+        private static NativeList<Triangle> GenerateTriangle(NativeList<Point> points)
         {
-            NativeList<Triangle> retValue = new NativeList<Triangle>(triangles.Length / 3, Allocator.Temp);
-            for (int i = 0; i < triangles.Length; i += 3)
+            NativeList<Triangle> retValue = new NativeList<Triangle>(points.Length / 3, Allocator.Temp);
+            for (int i = 0; i < points.Length; i += 3)
             {
                 Triangle tri = new Triangle
                 {
-                    a = points[triangles[i]],
-                    b = points[triangles[i + 1]],
-                    c = points[triangles[i + 2]],
+                    a = points[i],
+                    b = points[i + 1],
+                    c = points[i + 2],
                     last = null,
                     next = null
                 };
@@ -109,7 +109,7 @@ namespace MPipeline
                 float3 localPos = saturate((position - downPoint) / bound.size);
                 int3 coord = (int3)(localPos * voxelCount);
                 coord = min(coord, voxelCount - 1);
-                voxels[coord.x, coord.y, coord.z].Add((Triangle*)UnsafeUtility.AddressOf(ref tr));
+                voxels[coord.x, coord.y, coord.z].Add(tr.Ptr());
             }
             return voxels;
         }
@@ -179,12 +179,8 @@ namespace MPipeline
                 morePoint = float.MinValue;
                 foreach (var j in currentPoints)
                 {
-                    if (j.position.x < lessPoint.x) lessPoint.x = j.position.x;
-                    else if (j.position.x > morePoint.x) morePoint.x = j.position.x;
-                    if (j.position.y < lessPoint.y) lessPoint.y = j.position.y;
-                    else if (j.position.y > morePoint.y) morePoint.y = j.position.y;
-                    if (j.position.z < lessPoint.z) lessPoint.z = j.position.z;
-                    else if (j.position.z > morePoint.z) morePoint.z = j.position.z;
+                    lessPoint = lerp(lessPoint, j.position, (int3)(lessPoint > j.position));
+                    morePoint = lerp(morePoint, j.position, (int3)(morePoint < j.position));
                 }
                 Cluster cb = new Cluster
                 {
