@@ -1,0 +1,18 @@
+﻿#pragma kernel SetIndexTex
+#include "UnityCG.cginc"
+struct SetIndexCommand
+{
+    float4 targetFloat;
+    uint2 pos;
+};
+RWTexture2D<half4> _IndexTexture;
+uint _Count;
+StructuredBuffer<SetIndexCommand> _CommandBuffer;
+[numthreads(64, 1, 1)]
+void SetIndexTex(uint id : SV_DISPATCHTHREADID)
+{
+    if(id >= _Count) return;
+    SetIndexCommand cmd = _CommandBuffer[id];
+    _IndexTexture[cmd.pos] = cmd.targetFloat;
+}
+

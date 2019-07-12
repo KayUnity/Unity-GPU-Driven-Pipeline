@@ -8076,7 +8076,6 @@ GameObject:
   m_Component:
   - component: {fileID: 868978312}
   - component: {fileID: 868978311}
-  - component: {fileID: 868978313}
   m_Layer: 8
   m_Name: Environment
   m_TagString: Untagged
@@ -8115,18 +8114,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &868978313
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868978310}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2544cc3532177404aa012d3fdafb2f96, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &891551674
 GameObject:
   m_ObjectHideFlags: 0
@@ -10488,6 +10475,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a5cf71941122064c906c128f59463b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  localToWorldMatrix:
+    c0:
+      x: 0
+      y: 0
+      z: 0
+      w: 0
+    c1:
+      x: 0
+      y: 0
+      z: 0
+      w: 0
+    c2:
+      x: 0
+      y: 0
+      z: 0
+      w: 0
+    c3:
+      x: 0
+      y: 0
+      z: 0
+      w: 0
+  boundingBoxPosition:
+    x: 0
+    y: 0
+    z: 0
+  boundingBoxExtents:
+    x: 0.5
+    y: 0.5
+    z: 0.5
   cam: {fileID: 760465895}
   mat: {fileID: 2100000, guid: 015a5c8fc0c9f1244a1eb8990fb2288f, type: 2}
   depthTex: {fileID: 0}

@@ -71,9 +71,6 @@ namespace MPipeline
             }
             data.ExecuteCommandBuffer();
             data.context.DrawRenderers(proper.cullResults, ref drawSettings, ref filter);
-            CommandBuffer bf = cam.GetCommand<TransEvent>();
-            data.context.ExecuteCommandBuffer(bf);
-            bf.Clear();
             data.buffer.ReleaseTemporaryRT(blurTex);
         }
     }

@@ -1,76 +1,60 @@
 ﻿using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Collections;
+using Unity.Jobs;
 using System.Runtime.CompilerServices;
 namespace MPipeline
 {
     public unsafe struct Native2DArray<T> where T : unmanaged
     {
-        public uint2 Length
+        private T* ptr;
+        private bool isCreated;
+        public int2 Length { get; private set; }
+        public Allocator allocator { get; private set; }
+        private int getLength(int2 index)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private set;
+            return Length.x * index.y + index.x;
         }
-        public T* ptr
+        public ref T this[int2 index]
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private set;
+            get
+            {
+                return ref ptr[getLength(index)];
+            }
         }
-        private Allocator alloc;
-        public Native2DArray(uint2 size, Allocator alloc)
+        public Native2DArray(int2 len, Allocator alloc)
         {
-            this.alloc = alloc;
-            Length = size;
-            ptr = (T*)UnsafeUtility.Malloc(size.x * size.y * sizeof(T), 16, alloc);
+            ptr = MUnsafeUtility.Malloc<T>(len.x * len.y * sizeof(T), alloc);
+            isCreated = true;
+            allocator = alloc;
+            Length = len;
         }
-
         public void Dispose()
         {
-            UnsafeUtility.Free(ptr, alloc);
-        }
-
-        public T* AddressOf(uint x, uint y)
-        {
-            return ptr + y * Length.x + x;
-        }
-
-        public ref T this[uint x, uint y]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
+            if (isCreated)
             {
-                return ref ptr[y * Length.x + x];
+                UnsafeUtility.Free(ptr, allocator);
+                isCreated = false;
             }
         }
-
-        public ref T this[int x, int y]
+        public void SetAll(T defaultValue)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
+            int len = Length.x * Length.y;
+            new ParallarSet
             {
-                return ref ptr[y * Length.x + x];
-            }
+                ptr = ptr,
+                value = defaultValue
+            }.Schedule(len, len / 8).Complete();
         }
-
-        public ref T this[int2 value]
+        [Unity.Burst.BurstCompile]
+        private struct ParallarSet : IJobParallelFor
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
+            [NativeDisableUnsafePtrRestriction]
+            public T* ptr;
+            public T value;
+            public void Execute(int index)
             {
-                return ref ptr[value.y * Length.x + value.x];
-            }
-        }
-
-        public ref T this[uint2 value]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return ref ptr[value.y * Length.x + value.x];
+                ptr[index] = value;
             }
         }
     }

@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
 using Random = UnityEngine.Random;
-public unsafe sealed class RainDrop : MonoBehaviour
+public unsafe sealed class RainDrop : CustomDrawRequest
 {
     public PipelineCamera cam;
     private CommandBuffer buffer;
@@ -26,6 +26,7 @@ public unsafe sealed class RainDrop : MonoBehaviour
     private static readonly int _InvDepthVPMatrix = Shader.PropertyToID("_InvDepthVPMatrix");
     private static readonly int _RunSpeedBuffer = Shader.PropertyToID("_RunSpeedBuffer");
     private const int size = 8192;
+    
     private void Awake()
     {
         posBuffer = new ComputeBuffer(size, sizeof(float3));
@@ -57,24 +58,40 @@ public unsafe sealed class RainDrop : MonoBehaviour
         posBuffer.SetData(data);
         MPipeline.RenderPipeline.AddPreRenderCamera(depthCam);
     }
+    protected override void DrawCommand(out bool drawGBuffer, out bool drawShadow, out bool drawTransparent)
+    {
+        drawGBuffer = false;
+        drawShadow = false;
+        drawTransparent = true;
+    }
+    public override void FinishJob()
+    {
+        localToWorldMatrix = transform.localToWorldMatrix;
+    }
+    Matrix4x4 vp; Matrix4x4 invvp;
     private void Update()
     {
         if(cam.cam)
         transform.position = cam.cam.transform.position;
         transform.eulerAngles = new Vector3(90, 0, 0);
-        Matrix4x4 vp = GL.GetGPUProjectionMatrix(depthCam.cam.projectionMatrix, false) * depthCam.cam.worldToCameraMatrix;
-        Matrix4x4 invvp = vp.inverse;
+        vp = GL.GetGPUProjectionMatrix(depthCam.cam.projectionMatrix, false) * depthCam.cam.worldToCameraMatrix;
+        invvp = vp.inverse;
         if(updateDepth)
             MPipeline.RenderPipeline.AddPreRenderCamera(depthCam);
-        buffer = cam.GetCommand<TransEvent>();
+        buffer = MPipeline.RenderPipeline.BeforeFrameBuffer;
         buffer.SetGlobalFloat(ShaderIDs._DeltaTime, Time.deltaTime * speed);
-        buffer.SetGlobalBuffer(_InstancePos, posBuffer);
         buffer.SetComputeBufferParam(runShader, 0, _RunSpeedBuffer, speedBuffer);
         buffer.SetComputeTextureParam(runShader, 0, _RainDepthTex, depthTex);
-        buffer.SetGlobalMatrix(_InvDepthVPMatrix, invvp);
-        buffer.SetGlobalMatrix(_DepthVPMatrix, vp);
         buffer.SetComputeBufferParam(runShader, 0, _InstancePos, posBuffer);
         buffer.DispatchCompute(runShader, 0, size / 64, 1, 1);
+        
+    }
+    public override void DrawTransparent(CommandBuffer buffer)
+    {
+        buffer.SetGlobalFloat(ShaderIDs._DeltaTime, Time.deltaTime * speed);
+        buffer.SetGlobalBuffer(_InstancePos, posBuffer);
+        buffer.SetGlobalMatrix(_InvDepthVPMatrix, invvp);
+        buffer.SetGlobalMatrix(_DepthVPMatrix, vp);
         buffer.DrawProcedural(Matrix4x4.identity, mat, 0, MeshTopology.Triangles, 6, size);
     }
 

@@ -2,197 +2,191 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using System.Runtime.CompilerServices;
-using Unity.Mathematics;
-using static Unity.Mathematics.math;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using System;
+using static Unity.Mathematics.math;
+using Unity.Mathematics;
 namespace MPipeline
 {
+    [System.Serializable]
     public unsafe struct VirtualTexture
     {
-        public struct TextureSparse
+        private struct SetIndexCommand
         {
-            public int size;
-            public int2 offset;
-        }
-        private int resolution;
-        private RenderTextureFormat format;
-        private ArrayOfNativeLink<TextureSparse> allSparse;
-        private static bool2 IsSparseAligned(TextureSparse sparse)
+            public float4 targetFloat;
+            public uint2 pos;
+        };
+        private struct TexturePool
         {
-            return sparse.offset % (sparse.size * 2) == 0;
-        }
-        public VirtualTexture(int resolution, RenderTextureFormat format)
-        {
-            this.resolution = resolution;
-            this.format = format;
-            allSparse = new ArrayOfNativeLink<TextureSparse>((int)(0.01f + log2(resolution)), Allocator.Persistent, (a, b) =>
-            {
-                bool2 offset = a.offset == b.offset;
-                bool2 size = a.size == b.size;
-                return offset.x && offset.y && size.x && size.y;
-            });
-            NativeLinkedList<TextureSparse> originSparse = allSparse[allSparse.Length - 1];
-            originSparse.AddLast(new TextureSparse
-            {
-                offset = 0,
-                size = resolution / 2,
-            });
-            originSparse.AddLast(new TextureSparse
-            {
-                offset = int2(0, resolution / 2),
-                size = resolution / 2,
-            });
-            originSparse.AddLast(new TextureSparse
-            {
-                offset = int2(resolution / 2, 0),
-                size = resolution / 2,
-            });
-            originSparse.AddLast(new TextureSparse
-            {
-                offset = resolution / 2,
-                size = resolution / 2,
-            });
-        }
-        public TextureSparse GetSparse(int resolution)
-        {
-            return GetNewSparse((int)(0.01f + log2(resolution)));
-        }
-        private TextureSparse GetNewSparse(int index)
-        {
-            if (index >= allSparse.Length) throw new Exception("Out of Range!");
-            NativeLinkedList<TextureSparse> currentSparseList = allSparse[index];
-            if (currentSparseList.Length > 0)
-            {
-                TextureSparse sparse = *currentSparseList.GetLast();
-                currentSparseList.RemoveLast();
-                return sparse;
-            }
-            TextureSparse nextSparse = GetNewSparse(index + 1);
-            int size = nextSparse.size / 2;
-            currentSparseList.AddLast(new TextureSparse
-            {
-                offset = nextSparse.offset,
-                size = size,
-            });
-            currentSparseList.AddLast(new TextureSparse
-            {
-                offset = nextSparse.offset + int2(0, size),
-                size = size,
-            });
-            currentSparseList.AddLast(new TextureSparse
-            {
-                offset = nextSparse.offset + int2(size, 0),
-                size = size,
-            });
-            return new TextureSparse
-            {
-                offset = nextSparse.offset + size,
-                size = size,
-            };
-        }
+            private NativeArray<bool> marks;
+            private NativeList<int> arrayPool;
 
-        public void CombineTexture()
-        {
-            for (int i = 0; i < allSparse.Length - 1; ++i)
+            public TexturePool(int capacity)
             {
-                NativeLinkedList<TextureSparse> sparse = allSparse[i];
-                NativeList<TextureSparse> zeroPos = new NativeList<TextureSparse>(sparse.Length, Allocator.Temp);
-                foreach(var j in sparse)
+                marks = new NativeArray<bool>(capacity, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                arrayPool = new NativeList<int>(capacity, Allocator.Persistent);
+                for (int i = 0; i < capacity; ++i)
                 {
-                    bool2 ald = IsSparseAligned(j);
-                    if (ald.x && ald.y)
-                        zeroPos.Add(j);
+                    arrayPool.Add(i);
                 }
-                foreach(var j in zeroPos)
+            }
+            public void Dispose()
+            {
+                marks.Dispose();
+                arrayPool.Dispose();
+            }
+            public void Return(float index)
+            {
+                int i = (int)index;
+                if (index >= 0 && marks[i])
                 {
-                    TextureSparse* array = stackalloc TextureSparse[] {
-                        new TextureSparse
-                        {
-                            offset = j.offset + int2(j.size, 0),
-                            size = j.size,
-                        },
-                        new TextureSparse
-                        {
-                            offset = j.offset + int2(0, j.size),
-                            size = j.size,
-                        },
-                        new TextureSparse
-                        {
-                            offset = j.offset + j.size,
-                            size = j.size,
-                        },
-                        j
-                    };
-                    if(sparse.ContainsDatas(array, 3))
+                    marks[i] = false;
+                    arrayPool.Add(i);
+                }
+            }
+            public int Get()
+            {
+                int t;
+                do
+                {
+                    if (arrayPool.Length <= 0) return -1;
+                    t = arrayPool[arrayPool.Length - 1];
+                    arrayPool.RemoveLast();
+                } while (marks[t]);
+                marks[t] = true;
+                return t;
+            }
+        }
+        public ComputeShader shader;
+        public RenderTexture indexTex { get; private set; }
+        public RenderTexture[] textures { get; private set; }
+        private Native2DArray<float4> indexBuffers;
+        private TexturePool pool;
+        private ComputeBuffer commandListBuffer;
+        private int loadNewTexFrameCount;
+
+        public void Init(int2 perTextureSize, int maximumSize, int2 indexSize, NativeArray<RenderTextureFormat> formats)
+        {
+            commandListBuffer = new ComputeBuffer(64, sizeof(SetIndexCommand));
+            indexBuffers = new Native2DArray<float4>(indexSize, Allocator.Persistent);
+            pool = new TexturePool(maximumSize);
+            indexTex = new RenderTexture(new RenderTextureDescriptor
+            {
+                colorFormat = RenderTextureFormat.ARGBHalf,
+                depthBufferBits = 0,
+                dimension = TextureDimension.Tex2D,
+                enableRandomWrite = true,
+                width = indexSize.x,
+                height = indexSize.y,
+                volumeDepth = 1,
+                msaaSamples = 1
+            });
+            indexTex.Create();
+            textures = new RenderTexture[formats.Length];
+            for (int i = 0; i < formats.Length; ++i)
+            {
+                textures[i] = new RenderTexture(new RenderTextureDescriptor
+                {
+                    colorFormat = formats[i],
+                    depthBufferBits = 0,
+                    dimension = TextureDimension.Tex2DArray,
+                    enableRandomWrite = true,
+                    width = perTextureSize.x,
+                    height = perTextureSize.y,
+                    volumeDepth = maximumSize,
+                    msaaSamples = 1
+                });
+                textures[i].Create();
+            }
+            loadNewTexFrameCount = -1;
+            indexBuffers.SetAll(float4(0, 0, 0, -1));
+        }
+        public void Dispose()
+        {
+            Object.DestroyImmediate(indexTex);
+            foreach (var i in textures)
+            {
+                Object.DestroyImmediate(i);
+            }
+            indexBuffers.Dispose();
+            pool.Dispose();
+            commandListBuffer.Dispose();
+        }
+        /// <summary>
+        /// load a new texture into virtual texture
+        /// </summary>
+        /// <param name="startIndex">Start Index in the index texture</param>
+        /// <param name="size">Pixel count in index texture</param>
+        /// <returns>The target array index in TextureArray, return -1 if the pool is full</returns>
+        public int LoadNewTexture(int2 startIndex, int size)
+        {
+#if UNITY_EDITOR
+            if(loadNewTexFrameCount == Time.frameCount)
+            {
+                throw new System.Exception("Can't Call this function more than one times per frame!");
+            }
+            loadNewTexFrameCount = Time.frameCount;
+#endif
+            for (int x = 0; x < size; ++x)
+                for (int y = 0; y < size; ++y)
+                {
+                    ref float4 v = ref indexBuffers[int2(x, y) + startIndex];
+                    pool.Return(v.w);
+                    v.w = -1;
+
+                }
+            int targetIndex = pool.Get();
+            NativeArray<SetIndexCommand> lsts = new NativeArray<SetIndexCommand>(size * size, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            for (int x = 0; x < size; ++x)
+                for (int y = 0; y < size; ++y)
+                {
+                    ref float4 v = ref indexBuffers[int2(x, y) + startIndex];
+                    v = float4(1f / size, float2((float)x / size, (float)y / size), targetIndex + 0.2f);
+                    lsts[y * size + x] = new SetIndexCommand
                     {
-                        sparse.RemoveData(array, 4);
-                        allSparse[i + 1].AddLast(new TextureSparse
-                        {
-                            offset = j.offset,
-                            size = j.size * 2,
-                        });
-                    }
+                        pos = (uint2)(int2(x, y) + startIndex),
+                        targetFloat = v
+                    };
                 }
+            commandListBuffer.SetData(lsts);
+            CommandBuffer beforeFrameBuffer = RenderPipeline.BeforeFrameBuffer;
+            beforeFrameBuffer.SetComputeBufferParam(shader, 0, ShaderIDs._CommandBuffer, commandListBuffer);
+            beforeFrameBuffer.SetComputeTextureParam(shader, 0, ShaderIDs._IndexTexture, indexTex);
+            ComputeShaderUtility.Dispatch(shader, beforeFrameBuffer, 0, lsts.Length);
+            lsts.Dispose();
+#if UNITY_EDITOR
+            if (targetIndex < 0) throw new System.Exception("Virtual Texture Pool is out of range!!");
+#endif
+            return targetIndex;
+        }
+        public void UnloadTexture(int2 startIndex, int size)
+        {
+#if UNITY_EDITOR
+            if (loadNewTexFrameCount == Time.frameCount)
+            {
+                throw new System.Exception("Can't Call this function more than one times per frame!");
             }
-        }
-        public void PushSparseBack(TextureSparse sparse)
-        {
-            int index = (int)(0.01f + log2(sparse.size));
-            allSparse[index].AddLast(sparse);
-        }
-        public void Dispose()
-        {
-            allSparse.Dispose();
+            loadNewTexFrameCount = Time.frameCount;
+#endif
+            NativeArray<SetIndexCommand> lsts = new NativeArray<SetIndexCommand>(size * size, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            for (int x = 0; x < size; ++x)
+                for (int y = 0; y < size; ++y)
+                {
+                    ref float4 v = ref indexBuffers[int2(x, y) + startIndex];
+                    pool.Return(v.w);
+                    v.w = -1;
+                    lsts[y * size + x] = new SetIndexCommand
+                    {
+                        pos = (uint2)(int2(x, y) + startIndex),
+                        targetFloat = v
+                    };
+                }
+            commandListBuffer.SetData(lsts);
+            CommandBuffer beforeFrameBuffer = RenderPipeline.BeforeFrameBuffer;
+            beforeFrameBuffer.SetComputeBufferParam(shader, 0, ShaderIDs._CommandBuffer, commandListBuffer);
+            beforeFrameBuffer.SetComputeTextureParam(shader, 0, ShaderIDs._IndexTexture, indexTex);
+            ComputeShaderUtility.Dispatch(shader, beforeFrameBuffer, 0, lsts.Length);
+            lsts.Dispose();
         }
     }
-
-    public unsafe struct ArrayOfNativeLink<T> where T : unmanaged
-    {
-        private UIntPtr mainArray;
-        private Allocator alloc;
-        public int Length { get; private set; }
-        public ArrayOfNativeLink(int arraySize, Allocator alloc, Func<T, T, bool> func)
-        {
-            this.alloc = alloc;
-            mainArray = new UIntPtr(MUnsafeUtility.Malloc(UnsafeUtility.SizeOf<NativeLinkedList<T>>() * arraySize, alloc));
-            Length = arraySize;
-            for (int i = 0; i < arraySize; ++i)
-            {
-                SetList(i, new NativeLinkedList<T>(alloc, func));
-            }
-        }
-        public void Dispose()
-        {
-            for (int i = 0; i < Length; ++i)
-            {
-                GetList(i).Dispose();
-            }
-            UnsafeUtility.Free(mainArray.ToPointer(), alloc);
-        }
-        public NativeLinkedList<T> this[int index]
-        {
-            get
-            {
-                NativeLinkedList<T> value = new NativeLinkedList<T>();
-                UnsafeUtility.MemCpy(UnsafeUtility.AddressOf(ref value), (mainArray + index * UnsafeUtility.SizeOf<NativeLinkedList<T>>()).ToPointer(), UnsafeUtility.SizeOf<NativeLinkedList<T>>());
-                return value;
-            }
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private NativeLinkedList<T> GetList(int index)
-        {
-            NativeLinkedList<T> value = new NativeLinkedList<T>();
-            UnsafeUtility.MemCpy(UnsafeUtility.AddressOf(ref value), (mainArray + index * UnsafeUtility.SizeOf<NativeLinkedList<T>>()).ToPointer(), UnsafeUtility.SizeOf<NativeLinkedList<T>>());
-            return value;
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetList(int index, NativeLinkedList<T> list)
-        {
-            UnsafeUtility.MemCpy((mainArray + index * UnsafeUtility.SizeOf<NativeLinkedList<T>>()).ToPointer(), UnsafeUtility.AddressOf(ref list), UnsafeUtility.SizeOf<NativeLinkedList<T>>());
-        }
-    }
-
 }

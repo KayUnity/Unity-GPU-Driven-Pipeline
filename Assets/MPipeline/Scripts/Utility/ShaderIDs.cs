@@ -155,4 +155,7 @@ public static partial class ShaderIDs
     public static readonly int _NoiseTexture_Size = Shader.PropertyToID("_NoiseTexture_Size");
     public static readonly int _Offset = Shader.PropertyToID("_Offset");
     public static readonly int _OffsetDirection = Shader.PropertyToID("_OffsetDirection");
+
+    public static readonly int _CommandBuffer = Shader.PropertyToID("_CommandBuffer");
+    public static readonly int _IndexTexture = Shader.PropertyToID("_IndexTexture");
 }

@@ -48,7 +48,7 @@ namespace MPipeline
         public Dictionary<Type, IPerCameraData> allDatas = new Dictionary<Type, IPerCameraData>(17);
         public bool inverseRender = false;
         public RenderTargetIdentifier cameraTarget = BuiltinRenderTextureType.CameraTarget;
-        private Dictionary<Type, CommandBuffer> commandBuffers = new Dictionary<Type, CommandBuffer>(10);
+      //  private Dictionary<Type, CommandBuffer> commandBuffers = new Dictionary<Type, CommandBuffer>(10);
         public static List<PipelineCamera> allCameras = new List<PipelineCamera>(10);
         private int index = -1;
         [HideInInspector]
@@ -63,7 +63,7 @@ namespace MPipeline
             }
         }
 
-        public CommandBuffer GetCommand<T>() where T : PipelineEvent
+      /*  public CommandBuffer GetCommand<T>() where T : PipelineEvent
         {
             CommandBuffer bf;
             if (!commandBuffers.TryGetValue(typeof(T), out bf))
@@ -72,7 +72,7 @@ namespace MPipeline
                 commandBuffers.Add(typeof(T), bf);
             }
             return bf;
-        }
+        }*/
         private void OnEnable()
         {
             index = allCameras.Count;
@@ -95,11 +95,11 @@ namespace MPipeline
                 i.DisposeProperty();
             allDatas.Clear();
             cam = null;
-            foreach (var i in commandBuffers.Values)
+           /* foreach (var i in commandBuffers.Values)
             {
                 i.Dispose();
             }
             commandBuffers = null;
-        }
+        */}
     }
 }
