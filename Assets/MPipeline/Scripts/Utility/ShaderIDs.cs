@@ -47,6 +47,7 @@ public static partial class ShaderIDs
     public static readonly int _FinalBlendParameters = Shader.PropertyToID("_FinalBlendParameters");
     public static readonly int _HistoryTex = Shader.PropertyToID("_HistoryTex");
     public static readonly int _TextureSize = Shader.PropertyToID("_TextureSize");
+    public static readonly int _TargetElement = Shader.PropertyToID("_TargetElement");
     public static readonly int _TextureBuffer = Shader.PropertyToID("_TextureBuffer");
 
     public static readonly int _ShadowMapResolution = Shader.PropertyToID("_ShadowMapResolution");
@@ -158,4 +159,5 @@ public static partial class ShaderIDs
 
     public static readonly int _CommandBuffer = Shader.PropertyToID("_CommandBuffer");
     public static readonly int _IndexTexture = Shader.PropertyToID("_IndexTexture");
+    public static readonly int _VirtualTexture = Shader.PropertyToID("_VirtualTexture");
 }

@@ -20,7 +20,13 @@ namespace MPipeline
         {
             private NativeArray<bool> marks;
             private NativeList<int> arrayPool;
-
+            public int LeftedElement
+            {
+                get
+                {
+                    return arrayPool.Length;
+                }
+            }
             public TexturePool(int capacity)
             {
                 marks = new NativeArray<bool>(capacity, Allocator.Persistent, NativeArrayOptions.ClearMemory);
@@ -59,14 +65,38 @@ namespace MPipeline
         }
         public ComputeShader shader;
         public RenderTexture indexTex { get; private set; }
-        public RenderTexture[] textures { get; private set; }
+        private RenderTexture[] textures;
         private Native2DArray<float4> indexBuffers;
         private TexturePool pool;
         private ComputeBuffer commandListBuffer;
         private int loadNewTexFrameCount;
-
-        public void Init(int2 perTextureSize, int maximumSize, int2 indexSize, NativeArray<RenderTextureFormat> formats)
+        private int perTextureSize;
+        public RenderTexture GetTexture(int index)
         {
+            return textures[index];
+        }
+        public int LeftedTextureElement
+        {
+            get
+            {
+                return pool.LeftedElement;
+            }
+        }
+        public void Update()
+        {
+            CommandBuffer beforeFrameBuffer = RenderPipeline.BeforeFrameBuffer;
+            beforeFrameBuffer.SetGlobalTexture(ShaderIDs._IndexTexture, indexTex);
+        }
+        /// <summary>
+        /// Init Virtual Texture
+        /// </summary>
+        /// <param name="perTextureSize">Virtual texture's basic size</param>
+        /// <param name="maximumSize">Virtual texture's array size</param>
+        /// <param name="indexSize">Index Texture's size</param>
+        /// <param name="formats">Each VT's format</param>
+        public void Init(int perTextureSize, int maximumSize, int indexSize, NativeArray<RenderTextureFormat> formats)
+        {
+            this.perTextureSize = perTextureSize;
             commandListBuffer = new ComputeBuffer(64, sizeof(SetIndexCommand));
             indexBuffers = new Native2DArray<float4>(indexSize, Allocator.Persistent);
             pool = new TexturePool(maximumSize);
@@ -76,11 +106,12 @@ namespace MPipeline
                 depthBufferBits = 0,
                 dimension = TextureDimension.Tex2D,
                 enableRandomWrite = true,
-                width = indexSize.x,
-                height = indexSize.y,
+                width = indexSize,
+                height = indexSize,
                 volumeDepth = 1,
                 msaaSamples = 1
             });
+            indexTex.filterMode = FilterMode.Point;
             indexTex.Create();
             textures = new RenderTexture[formats.Length];
             for (int i = 0; i < formats.Length; ++i)
@@ -91,8 +122,8 @@ namespace MPipeline
                     depthBufferBits = 0,
                     dimension = TextureDimension.Tex2DArray,
                     enableRandomWrite = true,
-                    width = perTextureSize.x,
-                    height = perTextureSize.y,
+                    width = perTextureSize,
+                    height = perTextureSize,
                     volumeDepth = maximumSize,
                     msaaSamples = 1
                 });
@@ -121,7 +152,7 @@ namespace MPipeline
         public int LoadNewTexture(int2 startIndex, int size)
         {
 #if UNITY_EDITOR
-            if(loadNewTexFrameCount == Time.frameCount)
+            if (loadNewTexFrameCount == Time.frameCount)
             {
                 throw new System.Exception("Can't Call this function more than one times per frame!");
             }
@@ -148,10 +179,11 @@ namespace MPipeline
                         targetFloat = v
                     };
                 }
-            commandListBuffer.SetData(lsts);
             CommandBuffer beforeFrameBuffer = RenderPipeline.BeforeFrameBuffer;
+            commandListBuffer.SetData(lsts);
             beforeFrameBuffer.SetComputeBufferParam(shader, 0, ShaderIDs._CommandBuffer, commandListBuffer);
             beforeFrameBuffer.SetComputeTextureParam(shader, 0, ShaderIDs._IndexTexture, indexTex);
+
             ComputeShaderUtility.Dispatch(shader, beforeFrameBuffer, 0, lsts.Length);
             lsts.Dispose();
 #if UNITY_EDITOR
@@ -159,6 +191,11 @@ namespace MPipeline
 #endif
             return targetIndex;
         }
+        /// <summary>
+        /// Unload space
+        /// </summary>
+        /// <param name="startIndex">Start Index in IndexTexture </param>
+        /// <param name="size">Target Size in IndexTexture</param>
         public void UnloadTexture(int2 startIndex, int size)
         {
 #if UNITY_EDITOR
@@ -186,6 +223,52 @@ namespace MPipeline
             beforeFrameBuffer.SetComputeBufferParam(shader, 0, ShaderIDs._CommandBuffer, commandListBuffer);
             beforeFrameBuffer.SetComputeTextureParam(shader, 0, ShaderIDs._IndexTexture, indexTex);
             ComputeShaderUtility.Dispatch(shader, beforeFrameBuffer, 0, lsts.Length);
+            lsts.Dispose();
+        }
+        /// <summary>
+        /// Combine Textures in a fixed space
+        /// </summary>
+        /// <param name="startIndex">Start Index in IndexTexture </param>
+        /// <param name="size">Target Size in IndexTexture</param>
+        public void CombineTexture(int2 startIndex, int size)
+        {
+#if UNITY_EDITOR
+            if (loadNewTexFrameCount == Time.frameCount)
+            {
+                throw new System.Exception("Can't Call this function more than one times per frame!");
+            }
+            loadNewTexFrameCount = Time.frameCount;
+#endif
+            int targetIndex = pool.Get();
+#if UNITY_EDITOR
+            if (targetIndex < 0) throw new System.Exception("Virtual Texture Pool is out of range!!");
+#endif
+            NativeArray<SetIndexCommand> lsts = new NativeArray<SetIndexCommand>(size * size, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            for (int x = 0; x < size; ++x)
+                for (int y = 0; y < size; ++y)
+                {
+                    ref float4 v = ref indexBuffers[int2(x, y) + startIndex];
+                    pool.Return(v.w);
+                    v = float4(1f / size, float2((float)x / size, (float)y / size), targetIndex + 0.2f);
+                    lsts[y * size + x] = new SetIndexCommand
+                    {
+                        pos = (uint2)(int2(x, y) + startIndex),
+                        targetFloat = v
+                    };
+                }
+            CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
+            buffer.SetComputeTextureParam(shader, 1, ShaderIDs._IndexTexture, indexTex);
+            buffer.SetComputeIntParam(shader, ShaderIDs._TargetElement, targetIndex);
+            buffer.SetComputeVectorParam(shader, ShaderIDs._TextureSize, float4(perTextureSize,indexTex.width, startIndex));
+            foreach (var i in textures)
+            {
+                buffer.SetComputeTextureParam(shader, 1, ShaderIDs._VirtualTexture, i);
+                buffer.DispatchCompute(shader, 1, perTextureSize / 8, perTextureSize / 8, 1);
+            }
+            commandListBuffer.SetData(lsts);
+            buffer.SetComputeBufferParam(shader, 0, ShaderIDs._CommandBuffer, commandListBuffer);
+            buffer.SetComputeTextureParam(shader, 0, ShaderIDs._IndexTexture, indexTex);
+            ComputeShaderUtility.Dispatch(shader, buffer, 0, lsts.Length);
             lsts.Dispose();
         }
     }

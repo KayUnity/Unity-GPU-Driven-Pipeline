@@ -1,4 +1,5 @@
 ﻿#pragma kernel SetIndexTex
+#pragma kernel CombineTex
 #include "UnityCG.cginc"
 struct SetIndexCommand
 {
@@ -8,6 +9,10 @@ struct SetIndexCommand
 RWTexture2D<half4> _IndexTexture;
 uint _Count;
 StructuredBuffer<SetIndexCommand> _CommandBuffer;
+float4 _TextureSize; // X: virtual texture element's size Y: index texture size ZW: Start Index
+uint _TargetElement;
+RWTexture2DArray<float4> _VirtualTexture;
+
 [numthreads(64, 1, 1)]
 void SetIndexTex(uint id : SV_DISPATCHTHREADID)
 {
@@ -16,3 +21,14 @@ void SetIndexTex(uint id : SV_DISPATCHTHREADID)
     _IndexTexture[cmd.pos] = cmd.targetFloat;
 }
 
+[numthreads(8, 8, 1)]
+void CombineTex(uint2 id : SV_DISPATCHTHREADID)
+{
+    float2 uv = id / _TextureSize.x;
+    float2 indexLocalUV = uv * _TextureSize.y;
+    float2 indexUV = _TextureSize.zw + floor(indexLocalUV);
+    float4 scaleOffset = _IndexTexture[indexUV];
+    float3 vtUV = float3(frac(indexLocalUV) * scaleOffset.x + scaleOffset.yz, scaleOffset.w);
+    vtUV.xy *= _TextureSize.x;
+    _VirtualTexture[uint3(id, _TargetElement)] = _VirtualTexture[vtUV];
+}
