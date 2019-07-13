@@ -5,6 +5,7 @@ using Unity.Collections;
 using System;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine.Rendering;
 using System.IO;
 namespace MPipeline
 {
@@ -153,15 +154,16 @@ namespace MPipeline
                 indirectArgs[4] = propertyCount;
                 baseBuffer.moveCountBuffer.SetData(indirectArgs);
                 ComputeBuffer indexBuffer = SceneController.GetTempPropertyBuffer(property.clusterCount, 8);
+                CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
                 indirectArgs.Dispose();
-                shader.SetBuffer(0, ShaderIDs.instanceCountBuffer, baseBuffer.moveCountBuffer);
-                shader.SetBuffer(0, ShaderIDs.clusterBuffer, baseBuffer.clusterBuffer);
-                shader.SetBuffer(0, ShaderIDs._IndexBuffer, indexBuffer);
-                shader.SetBuffer(1, ShaderIDs._IndexBuffer, indexBuffer);
-                shader.SetBuffer(1, ShaderIDs.verticesBuffer, baseBuffer.verticesBuffer);
+                buffer.SetComputeBufferParam(shader, 0, ShaderIDs.instanceCountBuffer, baseBuffer.moveCountBuffer);
+                buffer.SetComputeBufferParam(shader, 0, ShaderIDs.clusterBuffer, baseBuffer.clusterBuffer);
+                buffer.SetComputeBufferParam(shader, 0, ShaderIDs._IndexBuffer, indexBuffer);
+                buffer.SetComputeBufferParam(shader, 1, ShaderIDs._IndexBuffer, indexBuffer);
+                buffer.SetComputeBufferParam(shader, 1, ShaderIDs.verticesBuffer, baseBuffer.verticesBuffer);
 
-                ComputeShaderUtility.Dispatch(shader, 0, result);
-                shader.DispatchIndirect(1, baseBuffer.moveCountBuffer);
+                ComputeShaderUtility.Dispatch(shader, buffer, 0, result);
+                buffer.DispatchCompute(shader, 1, baseBuffer.moveCountBuffer, 0);
             }
             baseBuffer.clusterCount = result;
             loading = false;

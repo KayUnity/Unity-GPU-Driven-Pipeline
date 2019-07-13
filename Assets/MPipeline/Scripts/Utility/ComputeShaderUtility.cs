@@ -15,7 +15,7 @@ public static class ComputeShaderUtility
         buffer.DispatchCompute(shader, kernal, threadPerGroup, 1, 1);
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Dispatch(ComputeShader shader, int kernal, int count)
+    public static void DispatchDirect(ComputeShader shader, int kernal, int count)
     {
         uint x, y, z;
         shader.GetKernelThreadGroupSizes(kernal, out x, out y, out z);

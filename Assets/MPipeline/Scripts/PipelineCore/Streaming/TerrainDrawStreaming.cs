@@ -175,7 +175,7 @@ namespace MPipeline
             removebuffer.SetData(transformList, 0, 0, len);
             transformShader.SetBuffer(0, ShaderIDs._IndexBuffer, removebuffer);
             transformShader.SetBuffer(0, ShaderIDs.clusterBuffer, clusterBuffer);
-            ComputeShaderUtility.Dispatch(transformShader, 0, len);
+            ComputeShaderUtility.DispatchDirect(transformShader, 0, len);
             transformList.Dispose();
         }
 

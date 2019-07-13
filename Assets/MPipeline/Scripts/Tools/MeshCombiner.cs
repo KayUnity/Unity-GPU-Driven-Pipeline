@@ -22,24 +22,23 @@ namespace MPipeline
             Vector3[] vertices = targetMesh.vertices;
             for (int i = 0; i < vertices.Length; ++i)
             {
-                 vertices[i] = transform.localToWorldMatrix.MultiplyPoint(vertices[i]);
+                vertices[i] = transform.localToWorldMatrix.MultiplyPoint(vertices[i]);
                 ///TODO
                 ///Add others
             }
-            for (int subCount = 0; subCount < targetMesh.subMeshCount; ++subCount)
+
+            int[] triangleArray = targetMesh.triangles;
+            foreach (var i in triangleArray)
             {
-                int[] triangleArray = targetMesh.GetTriangles(subCount);
-                foreach(var i in triangleArray)
+                points.Add(new Point
                 {
-                    points.Add(new Point
-                    {
-                        position = vertices[i]
-                    });
-                }
+                    position = vertices[i]
+                });
             }
 
+
         }
-        public CombinedModel ProcessCluster(MeshRenderer[] allRenderers, Dictionary<MeshRenderer, bool> lowLODLevels )
+        public CombinedModel ProcessCluster(MeshRenderer[] allRenderers, Dictionary<MeshRenderer, bool> lowLODLevels)
         {
             List<MeshFilter> allFilters = new List<MeshFilter>(allRenderers.Length);
             int sumVertexLength = 0;
@@ -98,7 +97,7 @@ namespace MPipeline
         public void TryThis()
         {
             bool save = false;
-            
+
             if (res == null)
             {
                 save = true;
@@ -122,14 +121,14 @@ namespace MPipeline
             }
             LODGroup[] groups = GetComponentsInChildren<LODGroup>();
             Dictionary<MeshRenderer, bool> lowLevelDict = new Dictionary<MeshRenderer, bool>();
-            foreach(var i in groups)
+            foreach (var i in groups)
             {
                 LOD[] lods = i.GetLODs();
-                for(int j = 1; j < lods.Length; ++j)
+                for (int j = 1; j < lods.Length; ++j)
                 {
-                    foreach(var k in lods[j].renderers)
+                    foreach (var k in lods[j].renderers)
                     {
-                        if(k.GetType() == typeof(MeshRenderer))
+                        if (k.GetType() == typeof(MeshRenderer))
                             lowLevelDict.Add(k as MeshRenderer, true);
                     }
                 }
