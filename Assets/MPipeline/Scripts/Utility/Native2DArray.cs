@@ -7,7 +7,9 @@ namespace MPipeline
 {
     public unsafe struct Native2DArray<T> where T : unmanaged
     {
-        private T* ptr;
+        [NativeDisableUnsafePtrRestriction]
+        private T* m_ptr;
+        public T* ptr { get { return m_ptr; } }
         private bool isCreated;
         public int2 Length { get; private set; }
         public Allocator allocator { get; private set; }
@@ -19,12 +21,12 @@ namespace MPipeline
         {
             get
             {
-                return ref ptr[getLength(index)];
+                return ref m_ptr[getLength(index)];
             }
         }
         public Native2DArray(int2 len, Allocator alloc)
         {
-            ptr = MUnsafeUtility.Malloc<T>(len.x * len.y * sizeof(T), alloc);
+            m_ptr = MUnsafeUtility.Malloc<T>(len.x * len.y * sizeof(T), alloc);
             isCreated = true;
             allocator = alloc;
             Length = len;
@@ -33,7 +35,7 @@ namespace MPipeline
         {
             if (isCreated)
             {
-                UnsafeUtility.Free(ptr, allocator);
+                UnsafeUtility.Free(m_ptr, allocator);
                 isCreated = false;
             }
         }
@@ -42,7 +44,7 @@ namespace MPipeline
             int len = Length.x * Length.y;
             new ParallarSet
             {
-                ptr = ptr,
+                ptr = m_ptr,
                 value = defaultValue
             }.Schedule(len, len / 8).Complete();
         }

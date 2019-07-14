@@ -8,7 +8,25 @@ using static Unity.Mathematics.math;
 using Unity.Mathematics;
 namespace MPipeline
 {
-    [System.Serializable]
+    public enum VirtualTextureSize
+    {
+        x8 = 8,
+        x16 = 16,
+        x32 = 32,
+        x64 = 64,
+        x128 = 128,
+        x256 = 256,
+        x512 = 512,
+        x1024 = 1024,
+        x2048 = 2048,
+        x4096 = 4096,
+        x8192 = 8192
+    };
+    public struct VirtualTextureFormat
+    {
+        public VirtualTextureSize perElementSize;
+        public RenderTextureFormat format;
+    }
     public unsafe struct VirtualTexture
     {
         private struct SetIndexCommand
@@ -63,14 +81,14 @@ namespace MPipeline
                 return t;
             }
         }
-        public ComputeShader shader;
+        private ComputeShader shader;
         public RenderTexture indexTex { get; private set; }
         private RenderTexture[] textures;
         private Native2DArray<float4> indexBuffers;
         private TexturePool pool;
         private ComputeBuffer commandListBuffer;
         private int loadNewTexFrameCount;
-        private int perTextureSize;
+        private NativeArray<VirtualTextureFormat> allFormats;
         public RenderTexture GetTexture(int index)
         {
             return textures[index];
@@ -94,9 +112,11 @@ namespace MPipeline
         /// <param name="maximumSize">Virtual texture's array size</param>
         /// <param name="indexSize">Index Texture's size</param>
         /// <param name="formats">Each VT's format</param>
-        public void Init(int perTextureSize, int maximumSize, int indexSize, NativeArray<RenderTextureFormat> formats)
+        public VirtualTexture(int maximumSize, int indexSize, NativeArray<VirtualTextureFormat> formats)
         {
-            this.perTextureSize = perTextureSize;
+            allFormats = new NativeArray<VirtualTextureFormat>(formats.Length, Allocator.Persistent);
+            UnsafeUtility.MemCpy(allFormats.GetUnsafePtr(), formats.GetUnsafePtr(), sizeof(VirtualTextureFormat) * formats.Length);
+            shader = Resources.Load<ComputeShader>("VirtualTexture");
             commandListBuffer = new ComputeBuffer(64, sizeof(SetIndexCommand));
             indexBuffers = new Native2DArray<float4>(indexSize, Allocator.Persistent);
             pool = new TexturePool(maximumSize);
@@ -116,14 +136,15 @@ namespace MPipeline
             textures = new RenderTexture[formats.Length];
             for (int i = 0; i < formats.Length; ++i)
             {
+                VirtualTextureFormat format = formats[i];
                 textures[i] = new RenderTexture(new RenderTextureDescriptor
                 {
-                    colorFormat = formats[i],
+                    colorFormat = format.format,
                     depthBufferBits = 0,
                     dimension = TextureDimension.Tex2DArray,
                     enableRandomWrite = true,
-                    width = perTextureSize,
-                    height = perTextureSize,
+                    width = (int)format.perElementSize,
+                    height = (int)format.perElementSize,
                     volumeDepth = maximumSize,
                     msaaSamples = 1
                 });
@@ -139,6 +160,7 @@ namespace MPipeline
             {
                 Object.DestroyImmediate(i);
             }
+            allFormats.Dispose();
             indexBuffers.Dispose();
             pool.Dispose();
             commandListBuffer.Dispose();
@@ -259,9 +281,11 @@ namespace MPipeline
             CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
             buffer.SetComputeTextureParam(shader, 1, ShaderIDs._IndexTexture, indexTex);
             buffer.SetComputeIntParam(shader, ShaderIDs._TargetElement, targetIndex);
-            buffer.SetComputeVectorParam(shader, ShaderIDs._TextureSize, float4(perTextureSize,indexTex.width, startIndex));
-            foreach (var i in textures)
+            
+            for(int i = 0; i < textures.Length; ++i)
             {
+                int perTextureSize = (int)allFormats[i].perElementSize;
+                buffer.SetComputeVectorParam(shader, ShaderIDs._TextureSize, float4(perTextureSize, indexTex.width, startIndex));
                 buffer.SetComputeTextureParam(shader, 1, ShaderIDs._VirtualTexture, i);
                 buffer.DispatchCompute(shader, 1, perTextureSize / 8, perTextureSize / 8, 1);
             }

@@ -160,4 +160,7 @@ public static partial class ShaderIDs
     public static readonly int _CommandBuffer = Shader.PropertyToID("_CommandBuffer");
     public static readonly int _IndexTexture = Shader.PropertyToID("_IndexTexture");
     public static readonly int _VirtualTexture = Shader.PropertyToID("_VirtualTexture");
+
+    public static readonly int _TerrainData = Shader.PropertyToID("_TerrainData");
+    public static readonly int _TerrainChunk = Shader.PropertyToID("_TerrainChunk");
 }

@@ -1,5 +1,5 @@
 ﻿
- Shader "Maxwell/StandardLit_VT" {
+ Shader "Maxwell/Terrain_Lit" {
 	Properties {
 		_Color ("Color", Color) = (1,1,1,1)
 		_ClearCoat("Clearcoat", Range(0, 1)) = 0.5
@@ -45,8 +45,8 @@ CGINCLUDE
 #include "CGINC/Shader_Include/AreaLight.hlsl"
 #include "CGINC/Sunlight.cginc"
 #include "CGINC/Lighting.cginc"
-#include "CGINC/StandardSurface_VT.cginc"
-#include "CGINC/MPipeDeferred.cginc"
+#include "CGINC/StandardSurface.cginc"
+#include "CGINC/TerrainDeferred.cginc"
 ENDCG
 
 pass
@@ -60,8 +60,8 @@ pass
 	}
 Name "GBuffer"
 Tags {"LightMode" = "GBuffer" "Name" = "GBuffer"}
-ZTest Equal
-ZWrite off
+ZTest Always
+ZWrite on
 Cull back
 CGPROGRAM
 	#pragma multi_compile _ ENABLE_SUN
@@ -86,39 +86,8 @@ ENDCG
 
 			ENDCG
 		}
-		Pass
-		{
-			Stencil
-			{
-				Ref 128
-				WriteMask 128
-				Comp always
-				Pass replace
-			}
-			ZTest Equal
-			Cull back
-			ZWrite off
-			Tags {"LightMode" = "MotionVector"}
-			CGPROGRAM
-			#pragma vertex vert_mv
-			#pragma fragment frag_mv
-			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
-			#pragma exclude_renderers gles
 
-			ENDCG
-		}
-		Pass
-		{
-			ZTest less
-			Cull back
-			Tags {"LightMode" = "Depth"}
-			CGPROGRAM
-			#pragma vertex vert_depth
-			#pragma fragment frag_depth
-			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
-			#pragma exclude_renderers gles
-			ENDCG
-		}
+
 }
 	CustomEditor "ShouShouEditor"
 }

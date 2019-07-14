@@ -38,15 +38,14 @@
             {
                 v2f o;
                 o.vertex = v.vertex;
-                o.vertex.y = -o.vertex.y;
                 o.uv = v.uv;
                 return o;
             }
             sampler2D _AOROTexture;
             sampler2D _CameraMotionVectorsTexture;
-            void frag (v2f i, out float4 col : SV_TARGET)
+            void frag (v2f i, out float2 col : SV_TARGET)
             {
-                col = tex2D(_CameraMotionVectorsTexture, i.uv);
+                col = ddx(i.uv);
             }
             ENDCG
         }

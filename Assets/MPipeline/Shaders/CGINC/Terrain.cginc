@@ -1,35 +1,27 @@
-#ifndef __TERRAIN_INCLUDE__
-#define __TERRAIN_INCLUDE__
-
-struct TerrainPanel
+#ifndef TERRAIN_INCLUDE
+#define TERRAIN_INCLUDE
+struct TerrainDrawData
 {
-    float3 extent;
-    float3 position;
-    int4 textureIndex;
-    int heightMapIndex;
-    uint edgeFlag;
+    float2 worldPos;
+    float scale;
+    uint2 chunkPos;
 };
-
-shared float4 planes[6];
-float PlaneTest(float3 position, float3 extent){
-    float result = 1;
-    [unroll]
-    for(uint i = 0; i < 6; ++i)
-    {
-        float4 plane = planes[i];
-        float3 absNormal = abs(plane.xyz);
-        result *= ((dot(position, plane.xyz) - dot(absNormal, extent)) < -plane.w) ? 1.0 : 0.0;
-    }
-    return result;
-}
-
-inline uint2 GetIndex(uint id, const uint width)
+struct Terrain_Appdata
 {
-    return int2(id % width, id / width);
-}
-
-inline uint GetIndex(uint2 id, const uint width)
+    float3 position;
+    float2 uv;
+    uint2 chunkPos;
+};
+StructuredBuffer<TerrainDrawData> _TerrainData;
+StructuredBuffer<float2> _TerrainChunk;
+Terrain_Appdata GetTerrain(uint instanceID, uint vertexID)
 {
-    return id.y * width + id.x;
+    TerrainDrawData data = _TerrainData[instanceID];
+    Terrain_Appdata o;
+    o.uv = _TerrainChunk[vertexID];
+    o.position = float3(data.worldPos + data.scale * o.uv, 0);
+    o.position.yz = o.position.zy;
+    o.chunkPos = data.chunkPos;
+    return o;
 }
 #endif

@@ -18,6 +18,7 @@ public unsafe sealed class MultiLayerTex : EditorWindow
     struct TextureSettings
     {
         public bool isOpen;
+        public bool voronoiSample;
         public Texture targetTexture;
         public float2 size;
         public float2 scale;
@@ -36,7 +37,6 @@ public unsafe sealed class MultiLayerTex : EditorWindow
     [SerializeField] private string path = "Assets/Test.png";
     private void OnGUI()
     {
-
         if (!drawShader) drawShader = Resources.Load<ComputeShader>("ShaderBlend");
         targetShowMat = EditorGUILayout.ObjectField("Target Material: ", targetShowMat, typeof(Material), true) as Material;
         //TODO
@@ -71,7 +71,6 @@ public unsafe sealed class MultiLayerTex : EditorWindow
             rt.Create();
         }
         if (targetShowMat) targetShowMat.SetTexture(ShaderIDs._MainTex, rt);
-        drawShader.SetTexture(0, ShaderIDs._MainTex, rt);
         drawShader.SetTexture(1, ShaderIDs._MainTex, rt);
         drawShader.SetVector("_MainTex_TexelSize", float4(1f / rtSize.x, 1f / rtSize.y, rtSize.x - 0.1f, rtSize.y - 0.1f));
         initColor = EditorGUILayout.ColorField("Initial Color: ", initColor);
@@ -96,6 +95,7 @@ public unsafe sealed class MultiLayerTex : EditorWindow
                 {
                     EditorGUI.indentLevel++;
                     e.targetTexture = EditorGUILayout.ObjectField("Texture: ", e.targetTexture, typeof(Texture), true) as Texture;
+                    e.voronoiSample = EditorGUILayout.Toggle("Voronoi Sample: ", e.voronoiSample);
                     e.size = saturate(EditorGUILayout.Vector2Field("Blend Size", saturate(e.size)));
                     e.blendAlpha = EditorGUILayout.Slider("Blend Alpha: ", e.blendAlpha, 0, 1);
                     e.scale = EditorGUILayout.Vector2Field("Tiling Scale: ", e.scale);
@@ -116,11 +116,13 @@ public unsafe sealed class MultiLayerTex : EditorWindow
                 {
                     float4 blendTexelSize = float4(1f / (float2)blendSize, (float2)blendSize.xy - 0.1f);
                     float4 offsetScale = float4(floor(e.offset * float2(rtSize.x, rtSize.y) + 0.1f), e.scale);
-                    drawShader.SetTexture(0, "_BlendTex", e.targetTexture);
+                    int pass = e.voronoiSample ? 3 : 0;
+                    drawShader.SetTexture(pass, ShaderIDs._MainTex, rt);
+                    drawShader.SetTexture(pass, "_BlendTex", e.targetTexture);
                     drawShader.SetVector("_OffsetScale", offsetScale);
                     drawShader.SetVector("_BlendTex_TexelSize", blendTexelSize);
                     drawShader.SetFloat("_BlendAlpha", e.blendAlpha);
-                    drawShader.Dispatch(0, Mathf.CeilToInt(blendSize.x / 8f), Mathf.CeilToInt(blendSize.y / 8f), 1);
+                    drawShader.Dispatch(pass, Mathf.CeilToInt(blendSize.x / 8f), Mathf.CeilToInt(blendSize.y / 8f), 1);
                 }
             }
         }
@@ -129,6 +131,7 @@ public unsafe sealed class MultiLayerTex : EditorWindow
             allTextures.Add(new TextureSettings
             {
                 blendAlpha = 1f,
+                voronoiSample = false,
                 isOpen = false,
                 offset = 0,
                 size = 1,

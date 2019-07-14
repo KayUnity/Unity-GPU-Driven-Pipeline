@@ -276,7 +276,7 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
         float4 lastWorldPos = mul(_InvLastVp, float4(prevDepthUV, lastFrameDepth, 1));
         worldPos /= worldPos.w; lastWorldPos /= lastWorldPos.w;
         worldPos -= lastWorldPos;
-        float depthAdaptiveForce = 1 - saturate(dot(worldPos.xyz, worldPos.xyz) - 0.25);
+        float depthAdaptiveForce = 1 - saturate(dot(worldPos.xyz, worldPos.xyz) - 0.1);
         float4 PrevColor = SAMPLE_TEXTURE2D(_HistoryTex, sampler_HistoryTex, PrevCoord);
         depthAdaptiveForce = lerp(depthAdaptiveForce, PrevColor.w, 0.5);
         depthAdaptiveForce = lerp(depthAdaptiveForce, 1, VelocityWeight);

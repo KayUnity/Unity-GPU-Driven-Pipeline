@@ -76,6 +76,10 @@ namespace MPipeline
                 frustumPlanes = (float4*)proper.frustumPlanes.Ptr(),
                 indexBuffer = CustomDrawRequest.drawGBufferList
             }.Schedule(CustomDrawRequest.drawGBufferList.Length, max(1, CustomDrawRequest.drawGBufferList.Length / 4));
+            if (MTerrain.current)
+            {
+                MTerrain.current.PreRender(cam, ref data, (float4*)proper.frustumPlanes.Ptr());
+            }
         }
 
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)
@@ -154,7 +158,7 @@ namespace MPipeline
                 hizOccData = IPerCameraData.GetProperty(cam, () => new HizOcclusionData());
                 SceneController.DrawCluster_LastFrameDepthHiZ(ref options, hizOccData, clusterMat, cam);
             }
-            
+
             foreach (var i in gbufferCullResults)
             {
                 lst[i].DrawGBuffer(buffer);
@@ -164,10 +168,14 @@ namespace MPipeline
             {
                 SceneController.DrawCluster_RecheckHiz(ref options, ref hizDepth, hizOccData, clusterMat, linearMat, cam);
             }
+            if (MTerrain.current)
+            {
+                MTerrain.current.PostRender(cam, ref data);
+            }
             //Draw AlphaTest
-           /* SortingSettings st = drawSettings.sortingSettings;
-            st.criteria = SortingCriteria.SortingLayer | SortingCriteria.RenderQueue | SortingCriteria.OptimizeStateChanges;
-            drawSettings.sortingSettings = st;*/
+            /* SortingSettings st = drawSettings.sortingSettings;
+             st.criteria = SortingCriteria.SortingLayer | SortingCriteria.RenderQueue | SortingCriteria.OptimizeStateChanges;
+             drawSettings.sortingSettings = st;*/
             SceneController.RenderScene(ref data, ref alphaTestFilter, ref drawSettings, ref proper.cullResults);
             //Draw Depth
             data.buffer.Blit(ShaderIDs._DepthBufferTexture, ShaderIDs._CameraDepthTexture);

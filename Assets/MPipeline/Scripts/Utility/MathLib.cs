@@ -80,6 +80,20 @@ namespace MPipeline
             return float2((float)Index / (float)NumSamples, (float)((double)ReverseBits32(Index) / 0xffffffffu));
         }
 
+        public static bool BoxIntersect(float3 position, float3 extent, float4* planes, int len)
+        {
+            for (uint i = 0; i < len; ++i)
+            {
+                float4 plane = planes[i];
+                float3 absNormal = abs(plane.xyz);
+                if ((dot(position, plane.xyz) - dot(absNormal, extent)) > -plane.w)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public static bool BoxIntersect(ref float4x4 localToWorld, float3 position, float3 extent, float4* planes, int len)
         {
             position = mul(localToWorld, float4(position, 1)).xyz;
