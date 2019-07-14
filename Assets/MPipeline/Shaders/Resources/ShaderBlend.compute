@@ -1,0 +1,31 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ColorTexBlend
+#pragma kernel Clear
+#include "UnityCG.cginc"
+RWTexture2D<float4> _MainTex;
+Texture2D<float4> _BlendTex; SamplerState sampler_BlendTex;
+float4 _MainTex_TexelSize;// XY : 1 / size   ZW: size - 0.1
+float4 _BlendTex_TexelSize; // XY : 1 / size   ZW: size - 0.1
+float4 _OffsetScale;    //XY: main tex offset + 0.1    ZW: Tilling Scale
+float _BlendAlpha;
+float4 _InitialColor;
+[numthreads(8,8,1)]
+void ColorTexBlend (uint2 id : SV_DispatchThreadID)
+{
+    uint2 mainTexID = id + _OffsetScale.xy;
+    if(id.x > _BlendTex_TexelSize.z || id.y > _BlendTex_TexelSize.w) return;
+    if(mainTexID.x > _MainTex_TexelSize.z || mainTexID.y > _MainTex_TexelSize.w) return;
+    float4 mainTexCol = _MainTex[mainTexID];
+    float4 blendTexCol = _BlendTex.SampleLevel(sampler_BlendTex, id * _BlendTex_TexelSize.xy * _OffsetScale.zw, 0);
+    float lerpValue = blendTexCol.a * _BlendAlpha;
+    mainTexCol.xyz = lerp(mainTexCol.xyz, blendTexCol.xyz, lerpValue);
+    mainTexCol.w = lerpValue;
+    _MainTex[mainTexID] = mainTexCol;
+}
+
+[numthreads(8,8,1)]
+void Clear(uint2 id : SV_DISPATCHTHREADID)
+{
+    if(id.x > _MainTex_TexelSize.z || id.y > _MainTex_TexelSize.w) return;
+    _MainTex[id] = _InitialColor;
+}

@@ -143,18 +143,4 @@ namespace MPipeline
         }
 #endif
     }
-    [Serializable]
-    public struct PropertyValue
-    {
-        public float _SpecularIntensity;
-        public float _MetallicIntensity;
-        public Vector4 _EmissionColor;
-        public float _Occlusion;
-        public float _Glossiness;
-        public Vector4 _Color;
-        public Vector3Int textureIndex;
-        public Vector2Int detailTextureIndex;
-        public Vector4 mainScaleOffset;
-        public Vector4 detailScaleOffset;
-    }
 }
