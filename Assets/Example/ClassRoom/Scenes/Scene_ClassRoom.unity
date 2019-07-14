@@ -5195,7 +5195,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1c730fae185f1b458fdc04865c2b614, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  index: 0
+  index: 1
   volume: 0.1
   fogColor: {r: 0.9622642, g: 0.39489147, b: 0.39489147, a: 1}
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
@@ -6603,7 +6603,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 716476661}
   m_LocalRotation: {x: -0.014943878, y: -0.0033190746, z: 0.004595476, w: -0.99987227}
-  m_LocalPosition: {x: 13.947, y: 2.783, z: -30.476}
+  m_LocalPosition: {x: 12.795, y: 3.434, z: -30.449}
   m_LocalScale: {x: 3.9672, y: 3.9672, z: 3.9672}
   m_Children: []
   m_Father: {fileID: 0}
@@ -8140,7 +8140,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1c730fae185f1b458fdc04865c2b614, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  index: 1
+  index: 0
   volume: 0.2
   fogColor: {r: 0.4715635, g: 0.9607843, b: 0.39607844, a: 1}
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
@@ -8167,7 +8167,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 868978312}
-  - component: {fileID: 868978311}
   - component: {fileID: 868978313}
   m_Layer: 8
   m_Name: Environment
@@ -8176,21 +8175,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 4294967295
   m_IsActive: 1
---- !u!114 &868978311
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868978310}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aaf2e9cd6a376cd48ae705c4302fd47a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  res: {fileID: 11400000, guid: 5c18b7c9458e3ea488761f9c56016cba, type: 2}
-  modelName: TestFile
-  voxelCount: 150
 --- !u!4 &868978312
 Transform:
   m_ObjectHideFlags: 0
@@ -8219,12 +8203,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2544cc3532177404aa012d3fdafb2f96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  vt:
-    shader: {fileID: 7200000, guid: 9945894ea02659e4cbb433025c1cb394, type: 3}
-  t0: {fileID: 2800000, guid: 9ea0fb89bf9e974408709ac179dd820a, type: 3}
-  t1: {fileID: 2800000, guid: f997375a8dba56949ac28b64ba39250f, type: 3}
-  t2: {fileID: 2800000, guid: 32b9f5f6724e658479d6472f65ce1763, type: 3}
-  t3: {fileID: 2800000, guid: 7a26a06fcfa3d2d46be67ced08532d25, type: 3}
 --- !u!1 &891551674
 GameObject:
   m_ObjectHideFlags: 0

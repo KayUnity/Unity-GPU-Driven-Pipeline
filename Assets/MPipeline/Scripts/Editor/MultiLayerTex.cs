@@ -6,7 +6,7 @@ using Unity.Mathematics;
 using UnityEngine.Rendering;
 using static Unity.Mathematics.math;
 using MPipeline;
-public class MultiLayerTex : EditorWindow
+public unsafe sealed class MultiLayerTex : EditorWindow
 {
     [MenuItem("MPipeline/MultiLayer Texture")]
     private static void CreateWizard()
@@ -19,6 +19,7 @@ public class MultiLayerTex : EditorWindow
     {
         public bool isOpen;
         public Texture targetTexture;
+        public float2 size;
         public float2 scale;
         public float2 offset;
         public float blendAlpha;
@@ -28,9 +29,11 @@ public class MultiLayerTex : EditorWindow
     [SerializeField] private List<TextureSettings> allTextures = new List<TextureSettings>();
     [SerializeField] private RenderTexture rt;
     [SerializeField] private Vector2Int rtSize = new Vector2Int(1024, 1024);
-    [SerializeField] private bool sRGB = false;
     [SerializeField] private Color initColor = Color.black;
     [SerializeField] private RenderTextureFormat format = RenderTextureFormat.ARGB32;
+    [SerializeField] private TextureFormat saveFormat = TextureFormat.ARGB32;
+    [SerializeField] private bool saveIsOpen = false;
+    [SerializeField] private string path = "Assets/Test.png";
     private void OnGUI()
     {
 
@@ -38,8 +41,9 @@ public class MultiLayerTex : EditorWindow
         targetShowMat = EditorGUILayout.ObjectField("Target Material: ", targetShowMat, typeof(Material), true) as Material;
         //TODO
         rtSize = EditorGUILayout.Vector2IntField("Texture Size: ", rtSize);
+        rtSize.x = max(1, rtSize.x);
+        rtSize.y = max(1, rtSize.y);
         format = (RenderTextureFormat)EditorGUILayout.EnumPopup("Texture Format: ", format);
-        sRGB = EditorGUILayout.Toggle("sRGB", sRGB);
 
         //Set RT
         if (!rt)
@@ -69,7 +73,7 @@ public class MultiLayerTex : EditorWindow
         if (targetShowMat) targetShowMat.SetTexture(ShaderIDs._MainTex, rt);
         drawShader.SetTexture(0, ShaderIDs._MainTex, rt);
         drawShader.SetTexture(1, ShaderIDs._MainTex, rt);
-        drawShader.SetVector("_MainTex_TexelSize: ", float4(1f / rtSize.x, 1f / rtSize.y, rtSize.x - 0.1f, rtSize.y - 0.1f));
+        drawShader.SetVector("_MainTex_TexelSize", float4(1f / rtSize.x, 1f / rtSize.y, rtSize.x - 0.1f, rtSize.y - 0.1f));
         initColor = EditorGUILayout.ColorField("Initial Color: ", initColor);
         drawShader.SetVector("_InitialColor", new Vector4(initColor.r, initColor.g, initColor.b, initColor.a));
         drawShader.Dispatch(1, Mathf.CeilToInt(rtSize.x / 8f), Mathf.CeilToInt(rtSize.y / 8f), 1);
@@ -78,7 +82,7 @@ public class MultiLayerTex : EditorWindow
             var e = allTextures[i];
             EditorGUILayout.BeginHorizontal();
             e.isOpen = EditorGUILayout.Foldout(e.isOpen, "Texture Layer " + i);
-            bool remove = GUILayout.Button("Remove");
+            bool remove = GUILayout.Button("Remove", GUILayout.MaxWidth(100));
             EditorGUILayout.EndHorizontal();
             if (remove)
             {
@@ -87,29 +91,70 @@ public class MultiLayerTex : EditorWindow
             }
             else
             {
-                
+
                 if (e.isOpen)
                 {
                     EditorGUI.indentLevel++;
                     e.targetTexture = EditorGUILayout.ObjectField("Texture: ", e.targetTexture, typeof(Texture), true) as Texture;
+                    e.size = saturate(EditorGUILayout.Vector2Field("Blend Size", saturate(e.size)));
                     e.blendAlpha = EditorGUILayout.Slider("Blend Alpha: ", e.blendAlpha, 0, 1);
                     e.scale = EditorGUILayout.Vector2Field("Tiling Scale: ", e.scale);
                     e.offset = EditorGUILayout.Vector2Field("Tiling Offset: ", e.offset);
+                    //Start Blending
+
                     EditorGUI.indentLevel--;
                 }
                 allTextures[i] = e;
             }
         }
-        if(GUILayout.Button("Add New Texture"))
+        foreach(var e in allTextures)
+        {
+            if (e.targetTexture)
+            {
+                int2 blendSize = (int2)(e.size * float2(rtSize.x, rtSize.y));
+                if (blendSize.x > 0 && blendSize.y > 0)
+                {
+                    float4 blendTexelSize = float4(1f / (float2)blendSize, (float2)blendSize.xy - 0.1f);
+                    float4 offsetScale = float4(floor(e.offset * float2(rtSize.x, rtSize.y) + 0.1f), e.scale);
+                    drawShader.SetTexture(0, "_BlendTex", e.targetTexture);
+                    drawShader.SetVector("_OffsetScale", offsetScale);
+                    drawShader.SetVector("_BlendTex_TexelSize", blendTexelSize);
+                    drawShader.SetFloat("_BlendAlpha", e.blendAlpha);
+                    drawShader.Dispatch(0, Mathf.CeilToInt(blendSize.x / 8f), Mathf.CeilToInt(blendSize.y / 8f), 1);
+                }
+            }
+        }
+        if (GUILayout.Button("Add New Texture"))
         {
             allTextures.Add(new TextureSettings
             {
                 blendAlpha = 1f,
                 isOpen = false,
                 offset = 0,
+                size = 1,
                 scale = 1,
                 targetTexture = null
             });
+        }
+        saveIsOpen = EditorGUILayout.Foldout(saveIsOpen, "Save Mode: ");
+        if(saveIsOpen)
+        {
+            EditorGUI.indentLevel++;
+            path = EditorGUILayout.TextField("Save Path: ", path);
+            saveFormat = (TextureFormat)EditorGUILayout.EnumPopup("Save Format: ", saveFormat);
+            if(GUILayout.Button("Save To PNG"))
+            {
+                Texture2D tex = new Texture2D(rtSize.x, rtSize.y, saveFormat, false, true);
+                ComputeBuffer dataBuffer = new ComputeBuffer(rtSize.x * rtSize.y, sizeof(float4));
+                drawShader.SetTexture(2, ShaderIDs._MainTex, rt);
+                drawShader.SetBuffer(2, "_ColorBuffer", dataBuffer);
+                drawShader.Dispatch(2, Mathf.CeilToInt(rtSize.x / 8f) , Mathf.CeilToInt(rtSize.y / 8f), 1);
+                Color[] colors = new Color[rtSize.x * rtSize.y];
+                dataBuffer.GetData(colors);
+                tex.SetPixels(colors);
+                System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+            }
+            EditorGUI.indentLevel--;
         }
     }
 }

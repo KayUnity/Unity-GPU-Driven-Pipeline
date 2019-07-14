@@ -285,7 +285,6 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
         float2 depth01 = Linear01Depth(float2(lastFrameDepth, depth));
         float finalDepthAdaptive = lerp(depthAdaptiveForce, 1, (depth01.x > 0.9999) || (depth01.y > 0.9999));
         PrevColor.xyz =  lerp(PrevColor.xyz, YCoCgToRGB( ClipToAABB( RGBToYCoCg(PrevColor.xyz), minColor.xyz, maxColor.xyz )), finalDepthAdaptive);
-        return float4(finalDepthAdaptive.xxx, depthAdaptiveForce);
         // HistoryBlend
        // return float4(lerp(depthAdaptiveForce, 1, (depth01.x > 0.9999) || (depth01.y > 0.9999)).xxx, depthAdaptiveForce);
         float HistoryWeight = lerp(_FinalBlendParameters.x, _FinalBlendParameters.y, VelocityWeight);

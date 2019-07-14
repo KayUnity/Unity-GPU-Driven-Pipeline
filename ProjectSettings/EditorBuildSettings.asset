@@ -6,11 +6,11 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Shoushou/Scenes/CyberProject.unity
-    guid: 30de7517209bc98469cfef522cf01c61
-  - enabled: 1
-    path: Assets/Shoushou/Scenes/Bar2.unity
-    guid: 2a60b0a78aa187647991161c0ee7233a
+    path: Assets/Example/ClassRoom/Scenes/Scene_ClassRoom.unity
+    guid: e38041a94adbe1048b9db05041c53ba6
+  - enabled: 0
+    path: Assets/Example/ClassRoom/Scenes/Envir.unity
+    guid: bf3d2487418f7bf4f985b2d41b18229f
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 0eae41beaf8537149b9be02c7a279a2d,
       type: 2}
