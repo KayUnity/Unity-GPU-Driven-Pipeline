@@ -45,11 +45,20 @@ namespace MPipeline
             float useless;
         };
 
-        struct LODJudging : IFunction<TerrainChunkBuffer, int>
+        struct LODJudging
         {
+            private bool sb;
             //Get LOD Level of a loaded terrain;
-            public int Run(ref TerrainChunkBuffer buffer)
+            public int Run(ref TerrainChunkBuffer buffer, int index)
             {
+                if (index == 0)
+                {
+                    if (!sb)
+                    {
+                        sb = true;
+                        return 0;
+                    }
+                }
                 return 1;
             }
         }
@@ -104,13 +113,41 @@ namespace MPipeline
             dispatchDrawBuffer.SetData(dispatchDraw);
 
 
-            NativeList<TerrainChunkBuffer> inBuf = new NativeList<TerrainChunkBuffer>(1, Allocator.Temp);
+            NativeList<TerrainChunkBuffer> inBuf = new NativeList<TerrainChunkBuffer>(5, Allocator.Temp);
             inBuf.Add(new TerrainChunkBuffer
             {
                 chunkSize = 1,
                 maxHeight = 0,
                 minHeight = 0,
                 position = 0
+            });
+            inBuf.Add(new TerrainChunkBuffer
+            {
+                chunkSize = 1,
+                maxHeight = 0,
+                minHeight = 0,
+                position = 1
+            });
+            inBuf.Add(new TerrainChunkBuffer
+            {
+                chunkSize = 1,
+                maxHeight = 0,
+                minHeight = 0,
+                position = int2(0, 1)
+            });
+            inBuf.Add(new TerrainChunkBuffer
+            {
+                chunkSize = 1,
+                maxHeight = 0,
+                minHeight = 0,
+                position = int2(1, 0)
+            });
+            inBuf.Add(new TerrainChunkBuffer
+            {
+                chunkSize = 1,
+                maxHeight = 0,
+                minHeight = 0,
+                position = int2(0, 2)
             });
             Add(inBuf);
         }
@@ -125,6 +162,10 @@ namespace MPipeline
             };
             constSettings.SetData(setting);
             setting.Dispose();
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                Remove(new LODJudging());
+            }
         }
 
         void Add(NativeList<TerrainChunkBuffer> targetBuffers)
@@ -151,7 +192,7 @@ namespace MPipeline
             }
         }
 
-        void Remove(ref LODJudging functor)
+        void Remove(LODJudging functor)
         {
             int length = 0;
             NativeArray<uint2> removeList = new NativeArray<uint2>(10, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
@@ -170,16 +211,15 @@ namespace MPipeline
             TerrainChunkBuffer* arrayPtr = loadedBufferArray.Ptr();
             for (int i = loadedCount - 1; i >= 0; --i)
             {
-                int res = functor.Run(ref arrayPtr[i]);
+                int res = functor.Run(ref arrayPtr[i], i);
                 switch (res)
                 {
                     case 0:
-                        if (i < loadedCount - 1)
-                        {
-                            add(uint2((uint)i, (uint)loadedCount - 1));
-                            i++;
-                        }
                         loadedCount--;
+                        if (i < loadedCount)
+                        {
+                            add(uint2((uint)i, (uint)loadedCount));
+                        }
                         break;
                 }
             }
@@ -193,11 +233,13 @@ namespace MPipeline
             CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
             buffer.SetComputeBufferParam(shader, 0, ShaderIDs._TerrainChunks, loadedBuffer);
             buffer.SetComputeBufferParam(shader, 0, ShaderIDs._IndexBuffer, removeIndexBuffer);
-            ComputeShaderUtility.Dispatch(shader, buffer, 0, length);
+            if (length > 0)
+                ComputeShaderUtility.Dispatch(shader, buffer, 0, length);
         }
 
         public void DrawTerrain(CommandBuffer buffer, int pass, Vector4[] planes)
         {
+            if (loadedCount <= 0) return;
             buffer.SetComputeBufferParam(shader, 2, ShaderIDs._DispatchBuffer, dispatchDrawBuffer);
             buffer.SetComputeBufferParam(shader, 1, ShaderIDs._DispatchBuffer, dispatchDrawBuffer);
             buffer.SetComputeBufferParam(shader, 1, ShaderIDs._CullResultBuffer, culledResultsBuffer);
