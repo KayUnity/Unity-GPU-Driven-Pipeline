@@ -47,7 +47,7 @@ namespace MPipeline
             buffer.SetData(arr);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SetDataPtr<T>(this ComputeBuffer buffer, T* dataPoint, int arrayStart, int bufferStart, int length) where T : unmanaged
+        public static void SetDataPtr<T>(this ComputeBuffer buffer, T* dataPoint, int bufferStart, int length) where T : unmanaged
         {
 #if UNITY_EDITOR
             if (length <= 0) throw new System.Exception("Length can not be zero!");
@@ -57,7 +57,7 @@ namespace MPipeline
             arrPtr[0] = (ulong)dataPoint;
             arrPtr[1] = (ulong)length;
             arrPtr[2] = (ulong)length - 1;
-            buffer.SetData(arr, arrayStart, bufferStart, length);
+            buffer.SetData(arr, 0, bufferStart, length);
         }
     }
 }

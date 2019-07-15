@@ -256,6 +256,10 @@ namespace MPipeline
                     PipelineFunctions.RunCullDispatching(baseBuffer, opts.cullingShader, opts.command);
                     opts.command.DrawProceduralIndirect(Matrix4x4.identity, sunLight.shadowDepthMaterial, 0, MeshTopology.Triangles, baseBuffer.instanceCountBuffer, 0);
                 }
+                if(MTerrain.current)
+                {
+                    MTerrain.current.DrawTerrain(opts.command, 1, vec);
+                }
                 data.ExecuteCommandBuffer();
                 FilteringSettings renderSettings = new FilteringSettings()
                 {

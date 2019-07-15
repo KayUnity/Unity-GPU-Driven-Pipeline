@@ -153,14 +153,14 @@ float4x4 _ShadowMapVP;
 				#endif
 			};
 
-			v2f_shadow vert_shadow (appdata_shadow v)
+			v2f_shadow vert_shadow (uint instanceID : SV_INSTANCEID, uint vertexID : SV_VERTEXID) 
 			{
-				float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
+				Terrain_Appdata v = GetTerrain(instanceID, vertexID);
 				v2f_shadow o;
 				#if POINT_LIGHT_SHADOW
-				o.worldPos = worldPos.xyz;
+				o.worldPos = v.position;
 				#endif
-				o.vertex = mul(_ShadowMapVP, worldPos);
+				o.vertex = mul(_ShadowMapVP, float4(v.position, 1));
 				#if CUT_OFF
 				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
 				#endif
