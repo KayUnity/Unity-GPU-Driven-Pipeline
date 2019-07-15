@@ -36,8 +36,8 @@ namespace MPipeline
         private Cubemap blackCB;
         private RenderTextureDescriptor volumeDesc;
         private RenderTexture volumeTex;
-
-
+        [Range(0f, 1f)]
+        public float temporalWeight = 0.95f;
 
         public override bool CheckProperty()
         {
@@ -151,7 +151,7 @@ namespace MPipeline
             }
             else
             {
-                buffer.SetGlobalFloat(ShaderIDs._TemporalWeight, 0.85f);
+                buffer.SetGlobalFloat(ShaderIDs._TemporalWeight, temporalWeight);
             }
 
             jobHandle.Complete();
