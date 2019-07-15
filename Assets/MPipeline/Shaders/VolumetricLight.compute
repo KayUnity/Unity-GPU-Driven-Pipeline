@@ -64,7 +64,7 @@ StructuredBuffer<AreaLight> _AreaLightBuffer;
     {
         return (Color.g * 0.5) + (Color.r + Color.b) * 0.25;
     }
-    #define TONE_BOUND 0.5
+    #define TONE_BOUND 0.75
     float3 Tonemap(float3 x) 
     { 
         float luma = Luma(x);
