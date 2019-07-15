@@ -11,6 +11,7 @@ public unsafe sealed class Test : MonoBehaviour
     private void Update()
     {
         SceneController.Update();
+
     }
 
 }

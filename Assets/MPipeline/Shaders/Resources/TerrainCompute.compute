@@ -1,0 +1,52 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Remove
+#pragma kernel Cull
+#pragma kernel Clear
+#include "../CGINC/Plane.cginc"
+uint _Count;
+struct TerrainChunkBuffer
+{
+    int2 position;
+    int chunkSize;
+    float minHeight;
+    float maxHeight;
+};
+cbuffer TerrainSettings
+{
+    int2 terrainOffset;
+    float perChunkSize;
+    float useless;
+};
+RWStructuredBuffer<TerrainChunkBuffer> _TerrainChunks;
+RWStructuredBuffer<uint> _CullResultBuffer;
+StructuredBuffer<uint2> _IndexBuffer;
+RWStructuredBuffer<uint> _DispatchBuffer;
+float4 planes[6];
+[numthreads(64, 1, 1)]
+void Remove (uint id : SV_DispatchThreadID)
+{
+    if(id >= _Count) return;
+    uint2 idx = _IndexBuffer[id];
+    _TerrainChunks[idx.x] = _TerrainChunks[idx.y];
+}
+
+[numthreads(64, 1, 1)]
+void Cull(uint id : SV_DISPATCHTHREADID)
+{
+    if(id >= _Count) return;
+    uint len;
+    TerrainChunkBuffer buffer = _TerrainChunks[id];
+    float3 startPos = float3((buffer.position + terrainOffset) * perChunkSize, buffer.minHeight);
+    float2 extent = float2(buffer.chunkSize * perChunkSize, buffer.maxHeight - buffer.minHeight)* 0.5;
+    if(BoxIntersect(extent.xyx, startPos.xzy + extent.xyx, planes))
+    {
+        InterlockedAdd(_DispatchBuffer[1], 1, len);
+        _CullResultBuffer[len] = id;
+    }
+}
+
+[numthreads(1, 1, 1)]
+void Clear(uint id : SV_DISPATCHTHREADID)
+{
+    _DispatchBuffer[1] = 0;
+}

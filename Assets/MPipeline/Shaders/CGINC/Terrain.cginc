@@ -1,27 +1,37 @@
 #ifndef TERRAIN_INCLUDE
 #define TERRAIN_INCLUDE
-struct TerrainDrawData
+struct TerrainChunkBuffer
 {
-    float2 worldPos;
-    float scale;
-    uint2 chunkPos;
+    int2 position;
+    int chunkSize;
+    float minHeight;
+    float maxHeight;
+};
+cbuffer TerrainSettings
+{
+    int2 terrainOffset;
+    float perChunkSize;
+    float useless;
 };
 struct Terrain_Appdata
 {
-    float3 position;
     float2 uv;
-    uint2 chunkPos;
+    float3 position;
+    int2 chunkPos;
 };
-StructuredBuffer<TerrainDrawData> _TerrainData;
-StructuredBuffer<float2> _TerrainChunk;
+StructuredBuffer<float2> _TerrainMeshBuffer;
+StructuredBuffer<TerrainChunkBuffer> _TerrainChunks;
+StructuredBuffer<uint> _CullResultBuffer;
 Terrain_Appdata GetTerrain(uint instanceID, uint vertexID)
 {
-    TerrainDrawData data = _TerrainData[instanceID];
+    TerrainChunkBuffer data = _TerrainChunks[_CullResultBuffer[instanceID]];
     Terrain_Appdata o;
-    o.uv = _TerrainChunk[vertexID];
-    o.position = float3(data.worldPos + data.scale * o.uv, 0);
+    o.uv = _TerrainMeshBuffer[vertexID];
+    float2 startPos = (data.position + terrainOffset) * perChunkSize;
+    float extent = data.chunkSize * perChunkSize;
+    o.position = float3(startPos + extent * o.uv, 0);
     o.position.yz = o.position.zy;
-    o.chunkPos = data.chunkPos;
+    o.chunkPos = data.position;
     return o;
 }
 #endif

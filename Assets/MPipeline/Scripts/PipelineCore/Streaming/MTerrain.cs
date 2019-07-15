@@ -10,7 +10,7 @@ using System.Threading;
 using UnityEngine.Rendering;
 namespace MPipeline
 {
-    public unsafe sealed class MTerrain : JobProcessEvent
+    public unsafe sealed class MTerrain : MonoBehaviour
     {
         public static MTerrain current { get; private set; }
         public struct TerrainChunkBuffer
@@ -20,12 +20,6 @@ namespace MPipeline
             public float minHeight;
             public float maxHeight;
         }
-        public struct TerrainDrawData
-        {
-            public float2 worldPos;
-            public float scale;
-            public uint2 chunkPos;
-        }
         public int chunkCount = 80;
         [Range(0f, 100f)]
         public float chunkSize = 10;
@@ -33,13 +27,32 @@ namespace MPipeline
         public Material drawTerrainMaterial;
         //private VirtualTexture virtualTexture;
         private Native2DArray<int> indexBuffer;
-        private NativeList<TerrainChunkBuffer> loadedChunks;
-        private NativeArray<TerrainDrawData> culledResults;
         private ComputeBuffer meshBuffer;
-        private ComputeBuffer drawBuffer;
-        private JobHandle cullHandle;
-        private int drawCount;
+        private ComputeBuffer constSettings;
+        private ComputeBuffer removeIndexBuffer;
+        private ComputeBuffer culledResultsBuffer;
+        private ComputeBuffer loadedBuffer;
+        private ComputeBuffer dispatchDrawBuffer;
+        private ComputeShader shader;
+        private int loadedCount = 0;
+        private NativeArray<TerrainChunkBuffer> loadedBufferArray;
         public int2 chunkOffset;
+        private static Vector4[] planes = new Vector4[6];
+        struct TerrainSettings
+        {
+            public int2 terrainOffset;
+            public float perChunkSize;
+            float useless;
+        };
+
+        struct LODJudging : IFunction<TerrainChunkBuffer, int>
+        {
+            //Get LOD Level of a loaded terrain;
+            public int Run(ref TerrainChunkBuffer buffer)
+            {
+                return 1;
+            }
+        }
 
         public void InitializeMesh()
         {
@@ -61,9 +74,10 @@ namespace MPipeline
                 }
             meshBuffer.SetData(arr);
             arr.Dispose();
+
         }
 
-        public override void OnEnableFunc()
+        void OnEnable()
         {
             if (current && current != this)
             {
@@ -75,95 +89,147 @@ namespace MPipeline
             //virtualTexture = new VirtualTexture()
             indexBuffer = new Native2DArray<int>(chunkCount, Allocator.Persistent);
             UnsafeUtility.MemClear(indexBuffer.ptr, sizeof(int) * indexBuffer.Length.x * indexBuffer.Length.y);
-            loadedChunks = new NativeList<TerrainChunkBuffer>(100, Allocator.Persistent);
-            drawBuffer = new ComputeBuffer(100, sizeof(TerrainDrawData));
             InitializeMesh();
-            loadedChunks.Add(new TerrainChunkBuffer
+            constSettings = new ComputeBuffer(1, sizeof(TerrainSettings), ComputeBufferType.Constant);
+            dispatchDrawBuffer = new ComputeBuffer(5, sizeof(int), ComputeBufferType.IndirectArguments);
+            removeIndexBuffer = new ComputeBuffer(10, sizeof(int2));
+            const int INIT_LENGTH = 200;
+            culledResultsBuffer = new ComputeBuffer(INIT_LENGTH, sizeof(int));
+            loadedBuffer = new ComputeBuffer(INIT_LENGTH, sizeof(TerrainChunkBuffer));
+            loadedBufferArray = new NativeArray<TerrainChunkBuffer>(INIT_LENGTH, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            loadedCount = 0;
+            shader = Resources.Load<ComputeShader>("TerrainCompute");
+            NativeArray<uint> dispatchDraw = new NativeArray<uint>(5, Allocator.Temp, NativeArrayOptions.ClearMemory);
+            dispatchDraw[0] = (uint)meshBuffer.count;
+            dispatchDrawBuffer.SetData(dispatchDraw);
+
+
+            NativeList<TerrainChunkBuffer> inBuf = new NativeList<TerrainChunkBuffer>(1, Allocator.Temp);
+            inBuf.Add(new TerrainChunkBuffer
             {
                 chunkSize = 1,
                 maxHeight = 0,
                 minHeight = 0,
                 position = 0
             });
+            Add(inBuf);
         }
-        public override void PrepareJob()
-        {
 
-        }
-        public override void FinishJob()
+        private void Update()
         {
-            if (drawBuffer.count < loadedChunks.Capacity)
+            NativeArray<TerrainSettings> setting = new NativeArray<TerrainSettings>(1, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            setting[0] = new TerrainSettings
             {
-                drawBuffer.Dispose();
-                drawBuffer = new ComputeBuffer(loadedChunks.Capacity, sizeof(TerrainDrawData));
+                perChunkSize = chunkSize,
+                terrainOffset = chunkOffset
+            };
+            constSettings.SetData(setting);
+            setting.Dispose();
+        }
+
+        void Add(NativeList<TerrainChunkBuffer> targetBuffers)
+        {
+            int oldCount = loadedCount;
+            loadedCount += targetBuffers.Length;
+            if (loadedCount > loadedBufferArray.Length)
+            {
+                NativeArray<TerrainChunkBuffer> newBuffer = new NativeArray<TerrainChunkBuffer>(loadedCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+                UnsafeUtility.MemCpy(newBuffer.Ptr() + oldCount, targetBuffers.unsafePtr, targetBuffers.Length * sizeof(TerrainChunkBuffer));
+                UnsafeUtility.MemCpy(newBuffer.GetUnsafePtr(), loadedBufferArray.GetUnsafePtr(), oldCount * sizeof(TerrainChunkBuffer));
+                loadedBufferArray.Dispose();
+                loadedBufferArray = newBuffer;
+                loadedBuffer.Dispose();
+                culledResultsBuffer.Dispose();
+                loadedBuffer = new ComputeBuffer(loadedCount, sizeof(TerrainChunkBuffer));
+                culledResultsBuffer = new ComputeBuffer(loadedCount, sizeof(int));
+                loadedBuffer.SetData(newBuffer);
             }
-
-        }
-        public void PreRender(PipelineCamera cam, ref PipelineCommandData data, float4* frustumPlanes)
-        {
-            culledResults = new NativeArray<TerrainDrawData>(loadedChunks.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            drawCount = 0;
-            cullHandle = new CullJob
+            else
             {
-                chunkOffset = chunkOffset,
-                chunkSize = chunkSize,
-                culledResult = culledResults.Ptr(),
-                count = drawCount.Ptr(),
-                frustumPlanes = frustumPlanes,
-                loadedChunks = loadedChunks
-            }.Schedule(loadedChunks.Length, max(1, loadedChunks.Length / 8));
+                UnsafeUtility.MemCpy(loadedBufferArray.Ptr() + oldCount, targetBuffers.unsafePtr, targetBuffers.Length * sizeof(TerrainChunkBuffer));
+                loadedBuffer.SetData(loadedBufferArray, oldCount, oldCount, targetBuffers.Length);
+            }
         }
-        public void PostRender(PipelineCamera cam, ref PipelineCommandData data)
+
+        void Remove(ref LODJudging functor)
         {
-            cullHandle.Complete();
-            drawBuffer.SetData(culledResults, 0, 0, culledResults.Length);
-            CommandBuffer buffer = data.buffer;
-            buffer.SetGlobalBuffer(ShaderIDs._TerrainChunk, meshBuffer);
-            buffer.SetGlobalBuffer(ShaderIDs._TerrainData, drawBuffer);
-            if(drawCount > 0)
-                buffer.DrawProcedural(Matrix4x4.identity, drawTerrainMaterial, 0, MeshTopology.Triangles, meshBuffer.count, drawCount);
-            culledResults.Dispose();
-
+            int length = 0;
+            NativeArray<uint2> removeList = new NativeArray<uint2>(10, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            void add(uint2 id)
+            {
+                length++;
+                if (length > removeList.Length)
+                {
+                    NativeArray<uint2> newRemoveList = new NativeArray<uint2>(max(length, (int)(removeList.Length * 1.2f)), Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+                    UnsafeUtility.MemCpy(newRemoveList.GetUnsafePtr(), removeList.GetUnsafePtr(), sizeof(uint2) * removeList.Length);
+                    removeList.Dispose();
+                    removeList = newRemoveList;
+                }
+                removeList[length - 1] = id;
+            }
+            TerrainChunkBuffer* arrayPtr = loadedBufferArray.Ptr();
+            for (int i = loadedCount - 1; i >= 0; --i)
+            {
+                int res = functor.Run(ref arrayPtr[i]);
+                switch (res)
+                {
+                    case 0:
+                        if (i < loadedCount - 1)
+                        {
+                            add(uint2((uint)i, (uint)loadedCount - 1));
+                            i++;
+                        }
+                        loadedCount--;
+                        break;
+                }
+            }
+            if (removeIndexBuffer.count < length)
+            {
+                removeIndexBuffer.Dispose();
+                removeIndexBuffer = new ComputeBuffer(length, sizeof(uint2));
+            }
+            removeIndexBuffer.SetData(removeList, 0, 0, length);
+            removeList.Dispose();
+            CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
+            buffer.SetComputeBufferParam(shader, 0, ShaderIDs._TerrainChunks, loadedBuffer);
+            buffer.SetComputeBufferParam(shader, 0, ShaderIDs._IndexBuffer, removeIndexBuffer);
+            ComputeShaderUtility.Dispatch(shader, buffer, 0, length);
         }
 
-        public override void OnDisableFunc()
+        public void DrawTerrain(CommandBuffer buffer, int pass, Vector4[] planes)
+        {
+            buffer.SetComputeBufferParam(shader, 2, ShaderIDs._DispatchBuffer, dispatchDrawBuffer);
+            buffer.SetComputeBufferParam(shader, 1, ShaderIDs._DispatchBuffer, dispatchDrawBuffer);
+            buffer.SetComputeBufferParam(shader, 1, ShaderIDs._CullResultBuffer, culledResultsBuffer);
+            buffer.SetComputeBufferParam(shader, 1, ShaderIDs._TerrainChunks, loadedBuffer);
+            buffer.SetGlobalConstantBuffer(constSettings, ShaderIDs.TerrainSettings, 0, sizeof(TerrainSettings));
+            buffer.SetGlobalBuffer(ShaderIDs._TerrainMeshBuffer, meshBuffer);
+            buffer.SetGlobalBuffer(ShaderIDs._TerrainChunks, loadedBuffer);
+            buffer.SetGlobalBuffer(ShaderIDs._CullResultBuffer, culledResultsBuffer);
+            buffer.SetComputeVectorArrayParam(shader, ShaderIDs.planes, planes);
+            buffer.DispatchCompute(shader, 2, 1, 1, 1);
+            ComputeShaderUtility.Dispatch(shader, buffer, 1, loadedCount);
+            buffer.DrawProceduralIndirect(Matrix4x4.identity, drawTerrainMaterial, pass, MeshTopology.Triangles, dispatchDrawBuffer);
+        }
+
+        public void DrawTerrain(CommandBuffer buffer, int pass, float4* planePtr)
+        {
+            UnsafeUtility.MemCpy(planes.Ptr(), planePtr, sizeof(float4) * 6);
+            DrawTerrain(buffer, pass, planes);
+        }
+
+        void OnDisable()
         {
             if (current != this) return;
             current = null;
             indexBuffer.Dispose();
-            loadedChunks.Dispose();
-            if (drawBuffer != null) meshBuffer.Dispose();
-            if (drawBuffer != null) drawBuffer.Dispose();
-        }
-        [Unity.Burst.BurstCompile]
-        private struct CullJob : IJobParallelFor
-        {
-            public NativeList<TerrainChunkBuffer> loadedChunks;
-            public float chunkSize;
-            public int2 chunkOffset;
-            [NativeDisableUnsafePtrRestriction]
-            public float4* frustumPlanes;
-            [NativeDisableUnsafePtrRestriction]
-            public TerrainDrawData* culledResult;
-            [NativeDisableUnsafePtrRestriction]
-            public int* count;
-            public void Execute(int index)
-            {
-                ref TerrainChunkBuffer buffer = ref loadedChunks[index];
-                float curChunkSize = buffer.chunkSize * chunkSize;
-                float3 minPos = float3(chunkSize * (float2)(buffer.position + chunkOffset), buffer.minHeight);
-                float3 maxPos = float3(minPos.xy + curChunkSize, buffer.maxHeight);
-                float3 position = ((maxPos + minPos) * 0.5f).xzy;
-                float3 extent = ((maxPos - minPos) * 0.5f).xzy;
-                if (MathLib.BoxIntersect(position, extent, frustumPlanes, 6))
-                {
-                    int v = Interlocked.Increment(ref *count) - 1;
-                    ref TerrainDrawData r = ref culledResult[v];
-                    r.chunkPos = (uint2)buffer.position;
-                    r.worldPos = minPos.xy;
-                    r.scale = curChunkSize;
-                }
-            }
+            if (meshBuffer != null) meshBuffer.Dispose();
+            if (constSettings != null) constSettings.Dispose();
+            if (removeIndexBuffer != null) removeIndexBuffer.Dispose();
+            if (culledResultsBuffer != null) culledResultsBuffer.Dispose();
+            if (loadedBuffer != null) loadedBuffer.Dispose();
+            if (dispatchDrawBuffer != null) dispatchDrawBuffer.Dispose();
+            if (loadedBufferArray.IsCreated) loadedBufferArray.Dispose();
         }
     }
 }

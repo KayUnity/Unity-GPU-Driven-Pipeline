@@ -76,10 +76,6 @@ namespace MPipeline
                 frustumPlanes = (float4*)proper.frustumPlanes.Ptr(),
                 indexBuffer = CustomDrawRequest.drawGBufferList
             }.Schedule(CustomDrawRequest.drawGBufferList.Length, max(1, CustomDrawRequest.drawGBufferList.Length / 4));
-            if (MTerrain.current)
-            {
-                MTerrain.current.PreRender(cam, ref data, (float4*)proper.frustumPlanes.Ptr());
-            }
         }
 
         public override void FrameUpdate(PipelineCamera cam, ref PipelineCommandData data)
@@ -170,7 +166,7 @@ namespace MPipeline
             }
             if (MTerrain.current)
             {
-                MTerrain.current.PostRender(cam, ref data);
+                MTerrain.current.DrawTerrain(buffer, 0, proper.frustumPlanes);
             }
             //Draw AlphaTest
             /* SortingSettings st = drawSettings.sortingSettings;
