@@ -8,6 +8,10 @@ using Unity.Collections.LowLevel.Unsafe;
 using MPipeline;
 public unsafe sealed class Test : MonoBehaviour
 {
+    [EasyButtons.Button]
+    void Run()
+    {
+    }
     private void Update()
     {
         SceneController.Update();

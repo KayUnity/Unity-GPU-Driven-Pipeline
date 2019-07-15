@@ -194,20 +194,8 @@ namespace MPipeline
 
         void Remove(LODJudging functor)
         {
-            int length = 0;
-            NativeArray<uint2> removeList = new NativeArray<uint2>(10, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            void add(uint2 id)
-            {
-                length++;
-                if (length > removeList.Length)
-                {
-                    NativeArray<uint2> newRemoveList = new NativeArray<uint2>(max(length, (int)(removeList.Length * 1.2f)), Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                    UnsafeUtility.MemCpy(newRemoveList.GetUnsafePtr(), removeList.GetUnsafePtr(), sizeof(uint2) * removeList.Length);
-                    removeList.Dispose();
-                    removeList = newRemoveList;
-                }
-                removeList[length - 1] = id;
-            }
+            NativeList<uint2> removeList = new NativeList<uint2>(10, Allocator.Temp);
+
             TerrainChunkBuffer* arrayPtr = loadedBufferArray.Ptr();
             for (int i = loadedCount - 1; i >= 0; --i)
             {
@@ -218,23 +206,25 @@ namespace MPipeline
                         loadedCount--;
                         if (i < loadedCount)
                         {
-                            add(uint2((uint)i, (uint)loadedCount));
+                            removeList.Add(uint2((uint)i, (uint)loadedCount));
                         }
                         break;
                 }
             }
-            if (removeIndexBuffer.count < length)
+            if (removeIndexBuffer.count < removeList.Length)
             {
                 removeIndexBuffer.Dispose();
-                removeIndexBuffer = new ComputeBuffer(length, sizeof(uint2));
+                removeIndexBuffer = new ComputeBuffer(removeList.Length, sizeof(uint2));
             }
-            removeIndexBuffer.SetData(removeList, 0, 0, length);
+            if (removeList.Length > 0)
+            {
+                removeIndexBuffer.SetDataPtr<uint2>(removeList.unsafePtr, 0, 0, removeList.Length);
+                CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
+                buffer.SetComputeBufferParam(shader, 0, ShaderIDs._TerrainChunks, loadedBuffer);
+                buffer.SetComputeBufferParam(shader, 0, ShaderIDs._IndexBuffer, removeIndexBuffer);
+                ComputeShaderUtility.Dispatch(shader, buffer, 0, removeList.Length);
+            }
             removeList.Dispose();
-            CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
-            buffer.SetComputeBufferParam(shader, 0, ShaderIDs._TerrainChunks, loadedBuffer);
-            buffer.SetComputeBufferParam(shader, 0, ShaderIDs._IndexBuffer, removeIndexBuffer);
-            if (length > 0)
-                ComputeShaderUtility.Dispatch(shader, buffer, 0, length);
         }
 
         public void DrawTerrain(CommandBuffer buffer, int pass, Vector4[] planes)

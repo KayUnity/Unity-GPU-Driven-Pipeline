@@ -48,6 +48,14 @@ public unsafe static class MUnsafeUtility
     {
         return (T*)arr.GetUnsafePtr();
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void SetPtr<T>(ref this NativeArray<T> arr, void* targetPtr) where T : unmanaged
+    {
+        ulong* ptr = (ulong*)(AddressOf(ref arr));
+        *ptr = (ulong)targetPtr;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ref T Get<T>(this NativeArray<T> arr, int index) where T : unmanaged
     {

@@ -5195,7 +5195,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1c730fae185f1b458fdc04865c2b614, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  index: 1
+  index: 0
   volume: 0.1
   fogColor: {r: 0.9622642, g: 0.39489147, b: 0.39489147, a: 1}
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
@@ -8140,7 +8140,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1c730fae185f1b458fdc04865c2b614, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  index: 0
+  index: 1
   volume: 0.2
   fogColor: {r: 0.4715635, g: 0.9607843, b: 0.39607844, a: 1}
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
@@ -8203,8 +8203,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2544cc3532177404aa012d3fdafb2f96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  shader: {fileID: 7200000, guid: e6129e7de733acd46bdf84d7852fdbd6, type: 3}
-  mat: {fileID: 2100000, guid: f8c3854a77b86184f8afd2b9b09a2eba, type: 2}
 --- !u!1 &891551674
 GameObject:
   m_ObjectHideFlags: 0
