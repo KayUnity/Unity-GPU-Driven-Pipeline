@@ -200,12 +200,12 @@ namespace MPipeline
             {
                 ptrs = allSpotCustomCullResults,
                 drawShadowList = CustomDrawRequest.drawShadowList
-            }.Schedule(CBDRSharedData.MAXIMUMSPOTLIGHTCOUNT, max(1, CBDRSharedData.MAXIMUMSPOTLIGHTCOUNT / 2), lightingHandle);
+            }.Schedule(2, 1, lightingHandle);
             pointLightCustomCullHandle = new PointLightCull
             {
                 ptrs = allPointCustomCullResults,
                 drawShadowList = CustomDrawRequest.drawShadowList
-            }.Schedule(CBDRSharedData.MAXIMUMPOINTLIGHTCOUNT, max(1, CBDRSharedData.MAXIMUMPOINTLIGHTCOUNT / 2), lightingHandle);
+            }.Schedule(2, 1, lightingHandle);
             if (SunLight.current != null && SunLight.current.enabled && SunLight.current.enableShadow)
             {
                 clipDistances = (float*)UnsafeUtility.Malloc(SunLight.CASCADECLIPSIZE * sizeof(float), 16, Allocator.Temp);
@@ -801,11 +801,13 @@ namespace MPipeline
             public NativeList_ulong drawShadowList;
             public void Execute(int index)
             {
-                if (index >= ptrs.Length) return;
-                SpotLightMatrix* mat = (SpotLightMatrix*)ptrs[index];
-                CustomRendererCullJob.ExecuteInList(mat->customCulledResult, &mat->frustumPlane0, drawShadowList);
+                for (int i = index; i < ptrs.Length; i += 2)
+                {
+                    SpotLightMatrix* mat = (SpotLightMatrix*)ptrs[i];
+                    CustomRendererCullJob.ExecuteInList(mat->customCulledResult, &mat->frustumPlane0, drawShadowList);
+                }
             }
-            
+
         }
 
         [Unity.Burst.BurstCompile]
@@ -815,9 +817,11 @@ namespace MPipeline
             public NativeList_ulong drawShadowList;
             public void Execute(int index)
             {
-                if (index >= ptrs.Length) return;
-                CubemapViewProjMatrix* mat = (CubemapViewProjMatrix*)ptrs[index];
-                CustomRendererCullJob.ExecuteInList(mat->customCulledResult, mat->frustumPlanes, drawShadowList);
+                for (int i = index; i < ptrs.Length; i += 2)
+                {
+                    CubemapViewProjMatrix* mat = (CubemapViewProjMatrix*)ptrs[i];
+                    CustomRendererCullJob.ExecuteInList(mat->customCulledResult, mat->frustumPlanes, drawShadowList);
+                }
             }
 
         }

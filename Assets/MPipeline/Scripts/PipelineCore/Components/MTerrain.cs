@@ -10,25 +10,24 @@ using System.Threading;
 using UnityEngine.Rendering;
 namespace MPipeline
 {
-    public unsafe sealed class MTerrain : MonoBehaviour
+    public unsafe sealed class MTerrain : JobProcessEvent
     {
         public static MTerrain current { get; private set; }
         public struct TerrainChunkBuffer
         {
-            public int2 position;
-            public int chunkSize;
-            public float minHeight;
-            public float maxHeight;
+            public float2 worldPos;
+            public float2 minMaxHeight;
+            public float scale;
         }
-        public int chunkCount = 80;
-        [Range(0f, 100f)]
-        public float chunkSize = 10;
+        public int chunkCount = 8;
+        [Range(0f, 1000f)]
+        public double chunkSize = 10;
+        public double[] lodDistances;
+        private float basicChunkSize = 0;
         public int planarResolution;
         public Material drawTerrainMaterial;
         //private VirtualTexture virtualTexture;
-        private Native2DArray<int> indexBuffer;
         private ComputeBuffer meshBuffer;
-        private ComputeBuffer constSettings;
         private ComputeBuffer removeIndexBuffer;
         private ComputeBuffer culledResultsBuffer;
         private ComputeBuffer loadedBuffer;
@@ -37,30 +36,6 @@ namespace MPipeline
         private NativeList<TerrainChunkBuffer> loadedBufferList;
         public int2 chunkOffset;
         private static Vector4[] planes = new Vector4[6];
-        struct TerrainSettings
-        {
-            public int2 terrainOffset;
-            public float perChunkSize;
-            float useless;
-        };
-
-        struct LODJudging
-        {
-            private bool sb;
-            //Get LOD Level of a loaded terrain;
-            public int Run(ref TerrainChunkBuffer buffer, int index)
-            {
-                if (index == 0)
-                {
-                    if (!sb)
-                    {
-                        sb = true;
-                        return 0;
-                    }
-                }
-                return 1;
-            }
-        }
 
         public void InitializeMesh()
         {
@@ -85,7 +60,17 @@ namespace MPipeline
 
         }
 
-        void OnEnable()
+        public override void PrepareJob()
+        {
+
+        }
+
+        public override void FinishJob()
+        {
+
+        }
+
+        protected override void OnEnableFunc()
         {
             if (current && current != this)
             {
@@ -95,10 +80,8 @@ namespace MPipeline
             }
             current = this;
             //virtualTexture = new VirtualTexture()
-            indexBuffer = new Native2DArray<int>(chunkCount, Allocator.Persistent);
-            UnsafeUtility.MemClear(indexBuffer.ptr, sizeof(int) * indexBuffer.Length.x * indexBuffer.Length.y);
+            basicChunkSize = (float)(chunkSize / pow(2.0, max(1, lodDistances.Length)));
             InitializeMesh();
-            constSettings = new ComputeBuffer(1, sizeof(TerrainSettings), ComputeBufferType.Constant);
             dispatchDrawBuffer = new ComputeBuffer(5, sizeof(int), ComputeBufferType.IndirectArguments);
             removeIndexBuffer = new ComputeBuffer(10, sizeof(int2));
             const int INIT_LENGTH = 200;
@@ -114,77 +97,83 @@ namespace MPipeline
             NativeList<TerrainChunkBuffer> inBuf = new NativeList<TerrainChunkBuffer>(1, Allocator.Temp);
             inBuf.Add(new TerrainChunkBuffer
             {
-                chunkSize = 1,
-                maxHeight = 0,
-                minHeight = 0,
-                position = 0
+                minMaxHeight = 0,
+                scale = 10,
+                worldPos = 0
             });
-
             Add(inBuf);
-        }
-
-        private void Update()
-        {
-            NativeArray<TerrainSettings> setting = new NativeArray<TerrainSettings>(1, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            setting[0] = new TerrainSettings
-            {
-                perChunkSize = chunkSize,
-                terrainOffset = chunkOffset
-            };
-            constSettings.SetData(setting);
-            setting.Dispose();
         }
 
         void Add(NativeList<TerrainChunkBuffer> targetBuffers)
         {
             int oldCount = loadedBufferList.Length;
             loadedBufferList.AddRange(targetBuffers);
-            if(loadedBuffer.count < loadedBufferList.Length)
+            if (loadedBuffer.count < loadedBufferList.Length)
             {
                 loadedBuffer.Dispose();
                 culledResultsBuffer.Dispose();
                 loadedBuffer = new ComputeBuffer(loadedBufferList.Length, sizeof(TerrainChunkBuffer));
                 culledResultsBuffer = new ComputeBuffer(loadedBufferList.Length, sizeof(int));
                 loadedBuffer.SetDataPtr(loadedBufferList.unsafePtr, loadedBufferList.Length);
-            }else
+            }
+            else
             {
                 loadedBuffer.SetDataPtr(targetBuffers.unsafePtr, oldCount, targetBuffers.Length);
             }
         }
 
-        void Remove(LODJudging functor)
+        void Remove(NativeList<int> removeCommands)
         {
-            NativeList<uint2> removeList = new NativeList<uint2>(10, Allocator.Temp);
-
-            TerrainChunkBuffer* arrayPtr = loadedBufferList.unsafePtr;
-            for (int i = loadedBufferList.Length - 1; i >= 0; --i)
+            int removeCount = removeCommands.Length;
+            int newCount = loadedBufferList.Length - removeCount;
+            for (int i = 0; i < removeCommands.Length; ++i)
             {
-                int res = functor.Run(ref arrayPtr[i], i);
-                switch (res)
+                ref int index = ref removeCommands[i];
+                if (index >= loadedBufferList.Length || index < 0)
                 {
-                    case 0:
-                        loadedBufferList.RemoveLast();
-                        if (i < loadedBufferList.Length)
-                        {
-                            removeList.Add(uint2((uint)i, (uint)loadedBufferList.Length));
-                        }
-                        break;
+                    index = removeCommands[removeCommands.Length - 1];
+                    removeCommands.RemoveLast();
+                    --i;
+                }
+                else if (index >= newCount)
+                {
+                    loadedBufferList[index].scale = 0;
+                    index = removeCommands[removeCommands.Length - 1];
+                    removeCommands.RemoveLast();
+                    --i;
                 }
             }
-            if (removeIndexBuffer.count < removeList.Length)
+            uint2* removeIndex = stackalloc uint2[removeCommands.Length];
+            int removeCommandCount = 0;
+            for (int i = 0; i < removeCommands.Length; ++i)
             {
-                removeIndexBuffer.Dispose();
-                removeIndexBuffer = new ComputeBuffer(removeList.Length, sizeof(uint2));
+                if (newCount >= loadedBufferList.Length) break;
+                while (loadedBufferList[newCount].scale < 1e-8f)
+                {
+                    newCount++;
+                    if (newCount >= loadedBufferList.Length) break;
+                }
+                int index = removeCommands[i];
+                loadedBufferList[index] = loadedBufferList[newCount];
+                removeIndex[i] = uint2((uint)index, (uint)newCount);
+                newCount++;
+                removeCommandCount++;
+
             }
-            if (removeList.Length > 0)
+            loadedBufferList.RemoveLast(removeCount);
+            if (removeCommandCount > 0)
             {
-                removeIndexBuffer.SetDataPtr<uint2>(removeList.unsafePtr, 0, removeList.Length);
+                if (removeIndexBuffer.count < removeCommandCount)
+                {
+                    removeIndexBuffer.Dispose();
+                    removeIndexBuffer = new ComputeBuffer(removeCommandCount, sizeof(uint2));
+                }
+                removeIndexBuffer.SetDataPtr<uint2>(removeIndex, 0, removeCommandCount);
                 CommandBuffer buffer = RenderPipeline.BeforeFrameBuffer;
                 buffer.SetComputeBufferParam(shader, 0, ShaderIDs._TerrainChunks, loadedBuffer);
                 buffer.SetComputeBufferParam(shader, 0, ShaderIDs._IndexBuffer, removeIndexBuffer);
-                ComputeShaderUtility.Dispatch(shader, buffer, 0, removeList.Length);
+                ComputeShaderUtility.Dispatch(shader, buffer, 0, removeCommandCount);
             }
-            removeList.Dispose();
         }
 
         public void DrawTerrain(CommandBuffer buffer, int pass, Vector4[] planes)
@@ -194,7 +183,6 @@ namespace MPipeline
             buffer.SetComputeBufferParam(shader, 1, ShaderIDs._DispatchBuffer, dispatchDrawBuffer);
             buffer.SetComputeBufferParam(shader, 1, ShaderIDs._CullResultBuffer, culledResultsBuffer);
             buffer.SetComputeBufferParam(shader, 1, ShaderIDs._TerrainChunks, loadedBuffer);
-            buffer.SetGlobalConstantBuffer(constSettings, ShaderIDs.TerrainSettings, 0, sizeof(TerrainSettings));
             buffer.SetGlobalBuffer(ShaderIDs._TerrainMeshBuffer, meshBuffer);
             buffer.SetGlobalBuffer(ShaderIDs._TerrainChunks, loadedBuffer);
             buffer.SetGlobalBuffer(ShaderIDs._CullResultBuffer, culledResultsBuffer);
@@ -210,13 +198,11 @@ namespace MPipeline
             DrawTerrain(buffer, pass, planes);
         }
 
-        void OnDisable()
+        protected override void OnDisableFunc()
         {
             if (current != this) return;
             current = null;
-            indexBuffer.Dispose();
             if (meshBuffer != null) meshBuffer.Dispose();
-            if (constSettings != null) constSettings.Dispose();
             if (removeIndexBuffer != null) removeIndexBuffer.Dispose();
             if (culledResultsBuffer != null) culledResultsBuffer.Dispose();
             if (loadedBuffer != null) loadedBuffer.Dispose();

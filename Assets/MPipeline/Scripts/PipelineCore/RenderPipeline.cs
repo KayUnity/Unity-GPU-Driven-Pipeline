@@ -266,10 +266,6 @@ namespace MPipeline
                 {
                     i.FinishJob();
                 }
-                foreach (var i in JobProcessEvent.allEvents)
-                {
-                    i.FinishJob();
-                }
             }
             if (useBeforeFrameBuffer)
             {
@@ -333,6 +329,10 @@ namespace MPipeline
                 renderContext.Submit();
             }
             MotionVectorDrawer.ExecuteAfterFrame();
+            foreach (var i in JobProcessEvent.allEvents)
+            {
+                i.FinishJob();
+            }
         }
 
         private void Render(PipelineCamera pipelineCam, ref ScriptableRenderContext context, Camera cam, bool* pipelineChecked)

@@ -24,7 +24,7 @@ namespace MPipeline
         }
         public abstract void PrepareJob();
         public abstract void FinishJob();
-        public virtual void OnEnableFunc() { }
-        public virtual void OnDisableFunc() { }
+        protected virtual void OnEnableFunc() { }
+        protected virtual void OnDisableFunc() { }
     }
 }

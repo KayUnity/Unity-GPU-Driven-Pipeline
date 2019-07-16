@@ -17,4 +17,4 @@ MonoBehaviour:
   indirectIntensity: 0.1
   linearFogDensity: 0.0005
   darkerWeight: 0.8
-  brighterWeight: 0.95
+  brighterWeight: 0.92

@@ -16,12 +16,9 @@ public unsafe sealed class Test : MonoBehaviour
     [EasyButtons.Button]
     void Run()
     {
-        Debug.Log(Mathf.Repeat(50.7f, 10));
-        Debug.Log(repeat(50.7f, 10));
     }
     private void Update()
     {
-        SceneController.Update();
 
     }
 
