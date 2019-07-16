@@ -60,7 +60,7 @@ pass
 	}
 Name "GBuffer"
 Tags {"LightMode" = "GBuffer" "Name" = "GBuffer"}
-ZTest Always
+ZTest Less
 ZWrite on
 Cull back
 CGPROGRAM
