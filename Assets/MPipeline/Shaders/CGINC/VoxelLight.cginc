@@ -8,7 +8,7 @@
 #define ZRES 128
 #define VOXELZ 64
 #define MAXLIGHTPERCLUSTER 128
-#define FROXELRATE 1.35
+#define FROXELRATE 1.2
 #define CLUSTERRATE 1.5
 static const uint3 _ScreenSize = uint3(160, 90, 128);
 #include "CGINC/Plane.cginc"

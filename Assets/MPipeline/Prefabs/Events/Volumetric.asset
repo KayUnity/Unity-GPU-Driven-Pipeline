@@ -16,4 +16,5 @@ MonoBehaviour:
   availableDistance: 32
   indirectIntensity: 0.1
   linearFogDensity: 0.0005
-  temporalWeight: 0.85
+  darkerWeight: 0.75
+  brighterWeight: 0.95

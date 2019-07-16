@@ -29,14 +29,14 @@
 //#define EMISSION_GEOMETRY
 
 //#define NOISE
-float4x4 _InvVP;
+float4x4 _InvNonJitterVP;
 float4x4 _ShadowMapVPs[4];
 float4 _ShadowDisableDistance;
 float3 _DirLightFinalColor;
 uint _LightFlag;
 float4x4 _LastVp;
 float4 _SceneOffset;
-float _TemporalWeight;
+float3 _TemporalWeight;
 
 StructuredBuffer<uint> _PointLightIndexBuffer;
 StructuredBuffer<uint> _SpotLightIndexBuffer;
@@ -59,24 +59,28 @@ uint _FogVolumeCount;
 uint _AreaLightCount;
 StructuredBuffer<AreaLight> _AreaLightBuffer;
 
+float3 repeat(float3 v, const float length)
+{
+    float3 left = v % length;
+    return lerp( left , length - left, left < 0);
+}
 
     float Luma(float3 Color)
     {
         return (Color.g * 0.5) + (Color.r + Color.b) * 0.25;
     }
     #define TONE_BOUND 0.75
-    float3 Tonemap(float3 x) 
+    float4 Tonemap(float4 x) 
     { 
-        float luma = Luma(x);
+        float luma = Luma(x.xyz);
         [flatten]
-        if(luma <= TONE_BOUND) return RGBToYCoCg(x);
-        else return RGBToYCoCg(x * (TONE_BOUND * TONE_BOUND - luma) / (luma * (2 * TONE_BOUND - 1 - luma)));
+        if(luma <= TONE_BOUND) return x;
+        else return x * (TONE_BOUND * TONE_BOUND - luma) / (luma * (2 * TONE_BOUND - 1 - luma));
         //return x * weight;
     }
 
-    float3 TonemapInvert(float3 x) { 
-        x = YCoCgToRGB(x);
-        float luma = Luma(x);
+    float4 TonemapInvert(float4 x) { 
+        float luma = Luma(x.xyz);
         [flatten]
         if(luma <= TONE_BOUND) return x;
         else return x * (TONE_BOUND * TONE_BOUND - (2 * TONE_BOUND - 1) * luma) / (luma * (1 - luma));
@@ -301,15 +305,13 @@ float4 ScatterStep(float3 accumulatedLight, float accumulatedTransmittance, floa
 
 #include "CGINC/Random.cginc"
 
-float3 RenderVoxel(uint3 id, inout float3 jitterCoord, const float zAxisOffset, inout float3 worldPos)
+float3 RenderVoxel(uint3 id, float3 jitterCoord, inout float3 worldPos)
 {
-    jitterCoord = MNoise(jitterCoord);
-    jitterCoord.z = jitterCoord.z * 0.5 + zAxisOffset;
     float2 uv = saturate(float2(id.xy + jitterCoord.xy) / (float2)(_ScreenSize.xy));
     float2 projCoord = uv * 2 - 1;
     float lerpPos = (id.z+  jitterCoord.z) / ((float)_ScreenSize.z);
     float linearDepth = lerp(_VolumetricLightVar.x, _VolumetricLightVar.z, pow(lerpPos, FROXELRATE));
-    float4 targetWorldPos = mul(_InvVP, float4(projCoord, EyeDepthToProj(linearDepth), 1));
+    float4 targetWorldPos = mul(_InvNonJitterVP, float4(projCoord, EyeDepthToProj(linearDepth), 1));
     targetWorldPos /= targetWorldPos.w;
     worldPos += targetWorldPos.xyz;
     float3 col = GetColor(targetWorldPos.xyz, linearDepth, uv);
@@ -319,14 +321,16 @@ float3 RenderVoxel(uint3 id, inout float3 jitterCoord, const float zAxisOffset, 
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     float3 value = (float3)id / (float3)_ScreenSize;
+    value = MNoise(value);
     float3 sampleWorldPos = 0;
-    float4 col = float4((RenderVoxel(id, value, 0, sampleWorldPos) + RenderVoxel(id, value, 0.5, sampleWorldPos)) * 0.5, 0);
+    float4 col = float4((RenderVoxel(id, value, sampleWorldPos) + RenderVoxel(id, repeat(value + 0.5, 1), sampleWorldPos)) * 0.5, 0);
     sampleWorldPos *= 0.5;
     float2 uv = saturate(float2(id.xy + 0.5) / (float2)(_ScreenSize.xy));
     float2 projCoord = uv * 2 - 1;
     float lerpPos = (id.z +  0.5) / ((float)_ScreenSize.z);
-    float linearDepth = lerp(_VolumetricLightVar.x, _VolumetricLightVar.z, pow(lerpPos, FROXELRATE));\
-    float4 targetWorldPos = mul(_InvVP, float4(projCoord, EyeDepthToProj(linearDepth), 1));
+    float linearDepth = lerp(_VolumetricLightVar.x, _VolumetricLightVar.z, pow(lerpPos, FROXELRATE));
+    float3 targetProjPos = float3(projCoord, EyeDepthToProj(linearDepth));
+    float4 targetWorldPos = mul(_InvNonJitterVP, float4(targetProjPos, 1));
     targetWorldPos /= targetWorldPos.w;
     #ifdef IBL
     col.rgb += FroxelIndirect(linearDepth, targetWorldPos.xyz, uv, _CameraNormals) * _VolumetricLightVar.w;
@@ -349,6 +353,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             #endif
         }
     }
+    col.xyz *= col.w;
  //   col.a = 0.02;
     float4 lastWorldPos = float4(targetWorldPos.xyz - _SceneOffset.xyz, 1);
     float4 lastFrameClip = mul(_LastVp, lastWorldPos);
@@ -356,14 +361,12 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float3 lastFrameUV = float3(lastFrameClip.xy * 0.5 + 0.5, (LinearEyeDepth(lastFrameClip.z) - _VolumetricLightVar.x) / (_VolumetricLightVar.z - _VolumetricLightVar.x));
     lastFrameUV.z = pow(lastFrameUV.z, 1 / FROXELRATE);
     float4 lastFrameColor = _LastVolume.SampleLevel(sampler_LastVolume, lastFrameUV, 0);
-    float reprojectionValid = lerp(_TemporalWeight * (dot(abs(lastFrameUV - saturate(lastFrameUV)), 1) < 1e-4), 0.999, _SceneOffset.w);
-    col.xyz *= col.w;
-  //  lastFrameColor.xyz = YCoCgToRGB(ClipToAABB(RGBToYCoCg(lastFrameColor.xyz), RGBToYCoCg(col.xyz), _TemporalWeight.y));
-    col.xyz = Tonemap(col.xyz);
-    lastFrameColor.xyz = Tonemap(lastFrameColor.xyz);
+    //float tWeight = lerp(_TemporalWeight.x, _TemporalWeight.y, saturate(distance(targetProjPos.xyz, lastFrameClip.xyz) * _TemporalWeight.z));
+    float colDiff = Luma(col.xyz) - Luma(lastFrameColor.xyz);//Whether current Color is brighter than last
+    float tWeight = lerp(_TemporalWeight.x, _TemporalWeight.y, saturate(tanh(colDiff * 4) * 0.5 + 0.5));
+    float reprojectionValid = lerp(tWeight * (dot(abs(lastFrameUV - saturate(lastFrameUV)), 1) < 1e-4), 0.999, _SceneOffset.w);
     col = lerp(col, lastFrameColor, reprojectionValid);
-    col.xyz = TonemapInvert(col.xyz);
-    _VolumeTex[id] = col;
+    _VolumeTex[id] = (col);
 }
 [numthreads(32, 2, 1)]
 void Scatter(uint2 id : SV_DISPATCHTHREADID)

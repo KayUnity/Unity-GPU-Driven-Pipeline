@@ -37,7 +37,9 @@ namespace MPipeline
         private RenderTextureDescriptor volumeDesc;
         private RenderTexture volumeTex;
         [Range(0f, 1f)]
-        public float temporalWeight = 0.95f;
+        public float darkerWeight = 0.75f;
+        [Range(0f, 1f)]
+        public float brighterWeight = 0.95f;
 
         public override bool CheckProperty()
         {
@@ -147,11 +149,12 @@ namespace MPipeline
                 historyVolume.lastVolume.filterMode = FilterMode.Bilinear;
                 historyVolume.lastVolume.wrapMode = TextureWrapMode.Clamp;
                 historyVolume.lastVolume.Create();
-                buffer.SetGlobalFloat(ShaderIDs._TemporalWeight, 0);
+                buffer.SetGlobalVector(ShaderIDs._TemporalWeight, Vector4.zero);
             }
             else
             {
-                buffer.SetGlobalFloat(ShaderIDs._TemporalWeight, temporalWeight);
+                const float clipBounce = 30f * 100f / 32f;
+                buffer.SetGlobalVector(ShaderIDs._TemporalWeight, new Vector4(darkerWeight, brighterWeight));
             }
 
             jobHandle.Complete();
