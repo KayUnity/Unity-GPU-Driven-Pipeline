@@ -70,6 +70,12 @@ public unsafe static class MUnsafeUtility
         }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Free(ref void* ptr, Allocator alloc)
+    {
+        UnsafeUtility.Free(ptr, alloc);
+        ptr = null;
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T* Ptr<T>(this T[] array) where T : unmanaged
     {
         return (T*)AddressOf(ref array[0]);
@@ -136,7 +142,7 @@ public unsafe static class MUnsafeUtility
     {
         value->Dispose();
         Allocator* allocPtr = ((Allocator*)value) - 1;
-        Free(allocPtr, *allocPtr);
+        UnsafeUtility.Free(allocPtr, *allocPtr);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -154,7 +160,7 @@ public unsafe static class MUnsafeUtility
     {
         value->Dispose();
         Allocator* allocPtr = ((Allocator*)value) - 1;
-        Free(allocPtr, *allocPtr);
+        UnsafeUtility.Free(allocPtr, *allocPtr);
     }
 
 
@@ -173,7 +179,7 @@ public unsafe static class MUnsafeUtility
     {
         value->Dispose();
         Allocator* allocPtr = ((Allocator*)value) - 1;
-        Free(allocPtr, *allocPtr);
+        UnsafeUtility.Free(allocPtr, *allocPtr);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -191,7 +197,7 @@ public unsafe static class MUnsafeUtility
     {
         value->Dispose();
         Allocator* allocPtr = ((Allocator*)value) - 1;
-        Free(allocPtr, *allocPtr);
+        UnsafeUtility.Free(allocPtr, *allocPtr);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -209,6 +215,6 @@ public unsafe static class MUnsafeUtility
     {
         value->Dispose();
         Allocator* allocPtr = ((Allocator*)value) - 1;
-        Free(allocPtr, *allocPtr);
+        UnsafeUtility.Free(allocPtr, *allocPtr);
     }
 }

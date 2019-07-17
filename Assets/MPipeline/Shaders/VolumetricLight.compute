@@ -363,7 +363,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float4 lastFrameColor = _LastVolume.SampleLevel(sampler_LastVolume, lastFrameUV, 0);
     //float tWeight = lerp(_TemporalWeight.x, _TemporalWeight.y, saturate(distance(targetProjPos.xyz, lastFrameClip.xyz) * _TemporalWeight.z));
     float colDiff = Luma(col.xyz) - Luma(lastFrameColor.xyz);//Whether current Color is brighter than last
-    float tWeight = lerp(_TemporalWeight.x, _TemporalWeight.y, saturate(tanh(colDiff * 4) * 0.5 + 0.5));
+    float tWeight = lerp(_TemporalWeight.x, _TemporalWeight.y, saturate(tanh(colDiff * 2) * 0.5 + 0.5));
     float reprojectionValid = lerp(tWeight * (dot(abs(lastFrameUV - saturate(lastFrameUV)), 1) < 1e-4), 0.999, _SceneOffset.w);
     col = lerp(col, lastFrameColor, reprojectionValid);
     _VolumeTex[id] = (col);

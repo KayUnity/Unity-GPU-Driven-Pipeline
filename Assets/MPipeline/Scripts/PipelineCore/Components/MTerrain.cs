@@ -93,18 +93,28 @@ namespace MPipeline
             dispatchDraw[0] = (uint)meshBuffer.count;
             dispatchDrawBuffer.SetData(dispatchDraw);
 
-
-            NativeList<TerrainChunkBuffer> inBuf = new NativeList<TerrainChunkBuffer>(1, Allocator.Temp);
-            inBuf.Add(new TerrainChunkBuffer
+            loadedBufferList.Add(new TerrainChunkBuffer
             {
                 minMaxHeight = 0,
                 scale = 10,
                 worldPos = 0
             });
-            Add(inBuf);
+            UpdateBuffer();
+        }
+        void UpdateBuffer()
+        {
+            if (!loadedBufferList.isCreated) return;
+            if(loadedBufferList.Length > loadedBuffer.count)
+            {
+                loadedBuffer.Dispose();
+                culledResultsBuffer.Dispose();
+                loadedBuffer = new ComputeBuffer(loadedBufferList.Capacity, sizeof(TerrainChunkBuffer));
+                culledResultsBuffer = new ComputeBuffer(loadedBufferList.Capacity, sizeof(int));
+            }
+            loadedBuffer.SetDataPtr(loadedBufferList.unsafePtr, loadedBufferList.Length);
         }
 
-        void Add(NativeList<TerrainChunkBuffer> targetBuffers)
+     /*   void Add(NativeList<TerrainChunkBuffer> targetBuffers)
         {
             int oldCount = loadedBufferList.Length;
             loadedBufferList.AddRange(targetBuffers);
@@ -125,6 +135,9 @@ namespace MPipeline
         void Remove(NativeList<int> removeCommands)
         {
             int removeCount = removeCommands.Length;
+            bool* recorder = MUnsafeUtility.Malloc<bool>(removeCount, Allocator.Temp);
+            UnsafeUtility.MemClear(recorder, removeCount);
+
             int newCount = loadedBufferList.Length - removeCount;
             for (int i = 0; i < removeCommands.Length; ++i)
             {
@@ -137,7 +150,7 @@ namespace MPipeline
                 }
                 else if (index >= newCount)
                 {
-                    loadedBufferList[index].scale = 0;
+                    recorder[index - newCount] = true;
                     index = removeCommands[removeCommands.Length - 1];
                     removeCommands.RemoveLast();
                     --i;
@@ -145,18 +158,18 @@ namespace MPipeline
             }
             uint2* removeIndex = stackalloc uint2[removeCommands.Length];
             int removeCommandCount = 0;
-            for (int i = 0; i < removeCommands.Length; ++i)
+            for (int i = 0, ite = newCount; i < removeCommands.Length; ++i)
             {
-                if (newCount >= loadedBufferList.Length) break;
-                while (loadedBufferList[newCount].scale < 1e-8f)
+                if (ite >= loadedBufferList.Length) break;
+                while (recorder[ite - newCount])
                 {
-                    newCount++;
-                    if (newCount >= loadedBufferList.Length) break;
+                    ite++;
+                    if (ite >= loadedBufferList.Length) break;
                 }
                 int index = removeCommands[i];
-                loadedBufferList[index] = loadedBufferList[newCount];
-                removeIndex[i] = uint2((uint)index, (uint)newCount);
-                newCount++;
+                loadedBufferList[index] = loadedBufferList[ite];
+                removeIndex[i] = uint2((uint)index, (uint)ite);
+                ite++;
                 removeCommandCount++;
 
             }
@@ -174,7 +187,8 @@ namespace MPipeline
                 buffer.SetComputeBufferParam(shader, 0, ShaderIDs._IndexBuffer, removeIndexBuffer);
                 ComputeShaderUtility.Dispatch(shader, buffer, 0, removeCommandCount);
             }
-        }
+            UnsafeUtility.Free(recorder, Allocator.Temp);
+        }*/
 
         public void DrawTerrain(CommandBuffer buffer, int pass, Vector4[] planes)
         {

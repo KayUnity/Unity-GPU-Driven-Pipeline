@@ -20,29 +20,27 @@ public static class GraphicsUtility
             if (isD3D)
             {
                 m_mesh.vertices = new Vector3[] {
-                new Vector3(-1,-1,0f),
-                new Vector3(-1,1,0f),
-                new Vector3(1,1,0f),
-                new Vector3(1,-1,0f)
+                    new Vector3(-3, -1, 0f),
+                    new Vector3(1, -1, 0f),
+                    new Vector3(1, 3, 0f)
                 };
             }
             else
             {
                 m_mesh.vertices = new Vector3[] {
-                new Vector3(-1,1,0f),
-                new Vector3(-1,-1,0f),
-                new Vector3(1,-1,0f),
-                new Vector3(1,1,0f)
+                    new Vector3(-3, 1, 0f),
+                    new Vector3(1, 1, 0f),
+                    new Vector3(1, -3, 0f)
                 };
             }
+
             m_mesh.uv = new Vector2[] {
-                new Vector2(0,1),
-                new Vector2(0,0),
-                new Vector2(1,0),
-                new Vector2(1,1)
+                new Vector2(-1,1),
+                new Vector2(1, 1),
+                new Vector2(1, -1)
             };
 
-            m_mesh.SetIndices(new int[] { 0, 1, 2, 0, 3, 2 }, MeshTopology.Triangles, 0);
+            m_mesh.SetIndices(new int[] { 0, 1, 2}, MeshTopology.Triangles, 0);
             return m_mesh;
         }
     }

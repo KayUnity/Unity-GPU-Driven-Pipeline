@@ -64,7 +64,7 @@ public unsafe struct NativeList<T> : IEnumerable<T> where T : unmanaged
     private void Resize()
     {
         if (data->count <= data->capacity) return;
-        data->capacity *= 2;
+        data->capacity = Mathf.Max(data->capacity + 1, (int)(data->capacity * 1.5));
         void* newPtr = MUnsafeUtility.Malloc<T>(sizeof(T) * data->capacity, data->allocator);
         UnsafeUtility.MemCpy(newPtr, data->ptr, sizeof(T) * data->count);
         UnsafeUtility.Free(data->ptr, data->allocator);

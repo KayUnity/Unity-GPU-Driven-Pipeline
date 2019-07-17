@@ -31,10 +31,12 @@ namespace MPipeline
         public int lodLevel;
         public int2 localPosition;
         public int2 rootPosition;
-        public TerrainQuadTree(TerrainQuadTree* parent, int parentLodLevel, ref TerrainQuadTreeSettings setting, LocalPos sonPos, int2 parentPos, int2 rootPosition)
+        public bool isRendering { get; private set; }
+        public TerrainQuadTree(TerrainQuadTree* parent, int parentLodLevel, TerrainQuadTreeSettings* setting, LocalPos sonPos, int2 parentPos, int2 rootPosition)
         {
-            this.setting = setting.Ptr();
+            this.setting = setting;
             this.rootPosition = rootPosition;
+            isRendering = false;
             lodLevel = parentLodLevel + 1;
             this.parent = parent;
             leftDown = null;
@@ -42,7 +44,7 @@ namespace MPipeline
             rightDown = null;
             rightUp = null;
             localPosition = parentPos * 2;
-            switch(sonPos)
+            switch (sonPos)
             {
                 case LocalPos.LeftUp:
                     localPosition += int2(0, 1);
@@ -71,29 +73,76 @@ namespace MPipeline
             if (leftDown != null)
             {
                 leftDown->Dispose();
+                leftUp->Dispose();
+                rightDown->Dispose();
+                rightUp->Dispose();
                 UnsafeUtility.Free(leftDown, Allocator.Persistent);
                 leftDown = null;
-            }
-
-            if (leftUp != null)
-            {
-                leftUp->Dispose();
-                UnsafeUtility.Free(leftUp, Allocator.Persistent);
                 leftUp = null;
-            }
-
-            if (rightDown != null)
-            {
-                rightDown->Dispose();
-                UnsafeUtility.Free(rightDown, Allocator.Persistent);
                 rightDown = null;
-            }
-
-            if (rightUp != null)
-            {
-                rightUp->Dispose();
-                UnsafeUtility.Free(rightUp, Allocator.Persistent);
                 rightUp = null;
+            }
+        }
+        private void DisableSelfRendering()
+        {
+            isRendering = false;
+            //TODO
+            //Disable Self's rendering
+        }
+        private void EnableSelfRendering()
+        {
+            isRendering = true;
+        }
+        private void Separate()
+        {
+            if (!isRendering) return;
+            isRendering = false;
+            DisableSelfRendering();
+            if (leftDown == null)
+            {
+                leftDown = MUnsafeUtility.Malloc<TerrainQuadTree>(sizeof(TerrainQuadTree) * 4, Allocator.Persistent);
+                leftUp = leftDown + 1;
+                rightDown = leftDown + 2;
+                rightUp = leftDown + 3;
+            }
+            *leftDown = new TerrainQuadTree(this.Ptr(), lodLevel, setting, LocalPos.LeftDown, localPosition, rootPosition)
+            {
+                isRendering = true
+            };
+            *leftUp = new TerrainQuadTree(this.Ptr(), lodLevel, setting, LocalPos.LeftUp, localPosition, rootPosition)
+            {
+                isRendering = true
+            };
+            *rightDown = new TerrainQuadTree(this.Ptr(), lodLevel, setting, LocalPos.RightDown, localPosition, rootPosition)
+            {
+                isRendering = true
+            };
+            *rightUp = new TerrainQuadTree(this.Ptr(), lodLevel, setting, LocalPos.RightUp, localPosition, rootPosition)
+            {
+                isRendering = true
+            };
+            //TODO
+            //Enable Children's rendering
+        }
+        private void Combine()
+        {
+            if (!(leftDown != null && leftDown->isRendering &&
+                  rightDown->isRendering && rightUp->isRendering && leftUp->isRendering))
+            {
+                //TODO
+                //Remove children's rendering
+                leftDown->Dispose();
+                leftUp->Dispose();
+                rightDown->Dispose();
+                rightUp->Dispose();
+                UnsafeUtility.Free(leftDown, Allocator.Persistent);
+                leftDown = null;
+                leftUp = null;
+                rightDown = null;
+                rightUp = null;
+                isRendering = true;
+                //TODO
+                //Enabled self's rendering
             }
         }
     }
