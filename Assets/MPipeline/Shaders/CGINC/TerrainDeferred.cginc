@@ -127,7 +127,7 @@ void frag_surf (v2f_surf IN,
 					outEmission.xyz +=max(0,  CalculateSunLight_NoShadow(o.Normal, worldViewDir, buffer));
 #endif
 #endif
-					outGBuffer1.xyz *= preint;
+					outGBuffer1.xyz = preint * multiScatter;
 #endif
 }
 

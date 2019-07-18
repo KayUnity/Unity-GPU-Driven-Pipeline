@@ -126,7 +126,7 @@ void frag_surf (v2f_surf IN,
 #if SPOTLIGHT || POINTLIGHT
                     outEmission.xyz += max(0, CalculateLocalLight(screenUV, float4(worldPos,1 ), linearEye, o.Normal, worldViewDir, buffer));
 #endif
-					outGBuffer1.xyz *= preint;
+					outGBuffer1.xyz = preint * multiScatter;
 #endif
 }
 

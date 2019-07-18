@@ -24,9 +24,9 @@ namespace MPipeline
     };
     public struct VirtualTextureFormat
     {
-        public VirtualTextureSize perElementSize;
-        public RenderTextureFormat format;
-        public int rtPropertyID;
+        public VirtualTextureSize perElementSize { get; private set; }
+        public RenderTextureFormat format { get; private set; }
+        public int rtPropertyID { get; private set; }
         public VirtualTextureFormat(VirtualTextureSize size, RenderTextureFormat format, string rtName)
         {
             perElementSize = size;
