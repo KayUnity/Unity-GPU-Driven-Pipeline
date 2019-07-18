@@ -140,7 +140,7 @@ void frag_surf (v2f_surf IN,
 	float Roughness = clamp(1 - outGBuffer1.a, 0.02, 1);
 					  float3 multiScatter;
   					float3 preint = PreintegratedDGF_LUT(_PreIntDefault, multiScatter, outGBuffer1.xyz, Roughness, dot(o.Normal, worldViewDir));
-					outGBuffer1.xyz *= multiScatter;
+					  outGBuffer1.xyz *= multiScatter;
 	UnityStandardData standardData;
 	            standardData.occlusion = outGBuffer0.a;
 	            standardData.diffuseColor = outGBuffer0.rgb;
@@ -171,7 +171,7 @@ void frag_surf (v2f_surf IN,
 					outEmission.xyz +=max(0,  CalculateSunLight_NoShadow(o.Normal, worldViewDir, buffer));
 #endif
 #endif
-					outGBuffer1.xyz *= preint;
+					outGBuffer1.xyz = preint * multiScatter;
 #endif
 }
 

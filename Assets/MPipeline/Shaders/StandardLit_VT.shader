@@ -1,5 +1,5 @@
 ﻿
- Shader "Maxwell/StandardLit(No Lightmap)" {
+ Shader "Maxwell/StandardLit_VT" {
 	Properties {
 		_Color ("Color", Color) = (1,1,1,1)
 		_ClearCoat("Clearcoat", Range(0, 1)) = 0.5
@@ -45,7 +45,7 @@ CGINCLUDE
 #include "CGINC/Shader_Include/AreaLight.hlsl"
 #include "CGINC/Sunlight.cginc"
 #include "CGINC/Lighting.cginc"
-#include "CGINC/StandardSurface.cginc"
+#include "CGINC/StandardSurface_VT.cginc"
 #include "CGINC/MPipeDeferred.cginc"
 ENDCG
 

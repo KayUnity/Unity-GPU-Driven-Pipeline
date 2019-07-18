@@ -96,12 +96,12 @@ Material:
     - _DstBlend: 0
     - _EmissionMultiplier: 1
     - _GlossMapScale: 1
-    - _Glossiness: 1
+    - _Glossiness: 0.81
     - _GlossyReflections: 1
     - _Keyword0: 0
     - _LightingModel: 1
     - _Metallic: 0
-    - _MetallicIntensity: 0
+    - _MetallicIntensity: 0.4
     - _Mode: 0
     - _NormalIntencity: 1
     - _NormalIntensity: 0.16
@@ -127,7 +127,7 @@ Material:
     - _Albedo: {r: 1, g: 1, b: 1, a: 1}
     - _AlbedoColor: {r: 1, g: 1, b: 1, a: 0}
     - _ClearCoatEnergy: {r: 1, g: 1, b: 1, a: 1}
-    - _Color: {r: 0, g: 0, b: 0, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _Color1: {r: 1, g: 1, b: 1, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _MultiScatter: {r: 1, g: 1, b: 1, a: 1}

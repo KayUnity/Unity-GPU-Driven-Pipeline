@@ -7,7 +7,7 @@
 		_ClearCoatSmoothness("Secondary Smoothness", Range(0, 1)) = 0.5
 		_Occlusion("Occlusion Scale", Range(0,1)) = 1
 		_Cutoff("Cut off", Range(0, 1)) = 0
-		_SpecularIntensity("Specular Intensity", Range(0,1)) = 0.3
+		_SpecularIntensity("Specular Intensity", Range(0,1)) = 0.04
 		_MetallicIntensity("Metallic Intensity", Range(0, 1)) = 0.1
 		_MainTex ("Albedo (RGB)DetailMask(A)", 2D) = "white" {}
 		[NoScaleOffset]_BumpMap("Normal Map", 2D) = "bump" {}

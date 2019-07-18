@@ -26,6 +26,13 @@ namespace MPipeline
     {
         public VirtualTextureSize perElementSize;
         public RenderTextureFormat format;
+        public int rtPropertyID;
+        public VirtualTextureFormat(VirtualTextureSize size, RenderTextureFormat format, string rtName)
+        {
+            perElementSize = size;
+            this.format = format;
+            rtPropertyID = Shader.PropertyToID(rtName);
+        }
     }
     public unsafe struct VirtualTexture
     {
@@ -104,6 +111,10 @@ namespace MPipeline
         {
             CommandBuffer beforeFrameBuffer = RenderPipeline.BeforeFrameBuffer;
             beforeFrameBuffer.SetGlobalTexture(ShaderIDs._IndexTexture, indexTex);
+            for(int i = 0; i < allFormats.Length; ++i)
+            {
+                beforeFrameBuffer.SetGlobalTexture(allFormats[i].rtPropertyID, textures[i]);
+            }
         }
         /// <summary>
         /// Init Virtual Texture
@@ -286,7 +297,7 @@ namespace MPipeline
             {
                 int perTextureSize = (int)allFormats[i].perElementSize;
                 buffer.SetComputeVectorParam(shader, ShaderIDs._TextureSize, float4(perTextureSize, indexTex.width, startIndex));
-                buffer.SetComputeTextureParam(shader, 1, ShaderIDs._VirtualTexture, i);
+                buffer.SetComputeTextureParam(shader, 1, ShaderIDs._VirtualTexture, textures[i]);
                 buffer.DispatchCompute(shader, 1, perTextureSize / 8, perTextureSize / 8, 1);
             }
             commandListBuffer.SetData(lsts);

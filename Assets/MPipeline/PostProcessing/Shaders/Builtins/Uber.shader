@@ -243,9 +243,9 @@ Shader "Hidden/PostProcessing/Uber"
 							#endif
 						}
 						#endif
-						// Output RGB is still HDR at that point (unless range was crunched by a tonemapper)
+						// Output RGB is still HDR at that point (unlesddsds range was crunched by a tonemapper)
 
-						return output;
+						return saturate(output);
 	}
 
 		ENDHLSL

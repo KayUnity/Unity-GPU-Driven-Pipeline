@@ -82,25 +82,25 @@ Material:
     - _BumpScale: 1
     - _ClearCoat: 0.5
     - _ClearCoatRoughness: 0.5
-    - _ClearCoatSmoothness: 0.5
+    - _ClearCoatSmoothness: 0.28
     - _Cutoff: 0
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _EmissionMultiplier: 0
     - _GlossMapScale: 1
-    - _Glossiness: 0.158
+    - _Glossiness: 0
     - _GlossyReflections: 1
     - _LightingModel: 1
     - _Metallic: 0
-    - _MetallicIntensity: 0.38
+    - _MetallicIntensity: 1
     - _Mode: 0
     - _NormalScale: 1
-    - _Occlusion: 0.81
+    - _Occlusion: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
-    - _SpecularIntensity: 0.246
+    - _SpecularIntensity: 0.04
     - _SrcBlend: 1
     - _Stencil: 1
     - _UVSec: 0
