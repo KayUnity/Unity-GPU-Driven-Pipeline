@@ -4,6 +4,7 @@
 	struct Input {
 			float2 uv_MainTex;
 			float2 uv4;
+			float2 viewDir;
 		};
 cbuffer UnityPerMaterial
 {

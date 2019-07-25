@@ -113,7 +113,9 @@ namespace MPipeline
                 enableDynamicBatching = false,
                 enableInstancing = false
             };
-            DrawingSettings depthOpaqueDrawSettings = new DrawingSettings(new ShaderTagId("Depth"),
+            DrawingSettings depthOpaqueDrawSettings;
+
+            depthOpaqueDrawSettings = new DrawingSettings(new ShaderTagId("Depth"),
                 new SortingSettings(cam.cam) { criteria = SortingCriteria.QuantizedFrontToBack })
             {
                 perObjectData = UnityEngine.Rendering.PerObjectData.None,
@@ -122,7 +124,8 @@ namespace MPipeline
                 overrideMaterial = proper.overrideOpaqueMaterial,
                 overrideMaterialPassIndex = 1
             };
-            DrawingSettings drawSettings = new DrawingSettings(new ShaderTagId("GBuffer"), new SortingSettings(cam.cam) { criteria = SortingCriteria.SortingLayer | SortingCriteria.RenderQueue | SortingCriteria.OptimizeStateChanges })
+
+            DrawingSettings drawSettings = new DrawingSettings(new ShaderTagId("GBuffer"), new SortingSettings(cam.cam) { criteria = SortingCriteria.RenderQueue | SortingCriteria.OptimizeStateChanges })
             {
                 perObjectData = UnityEngine.Rendering.PerObjectData.Lightmaps,
                 enableDynamicBatching = false,

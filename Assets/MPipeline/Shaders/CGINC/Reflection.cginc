@@ -6,6 +6,10 @@
         const uint3 multiValue = uint3(1, size.x, size.x * size.y) * multiply;
         return dot(id, multiValue);
     }
+    float RoughnessToMipLevel(float rough)
+    {
+        return min(UNITY_SPECCUBE_LOD_STEPS, rough * 10);
+    }
     TextureCube<float4> _ReflectionCubeMap; SamplerState sampler_ReflectionCubeMap;
     TextureCube<float4> _ReflectionCubeMap0; SamplerState sampler_ReflectionCubeMap0;
     TextureCube<float4> _ReflectionCubeMap1; SamplerState sampler_ReflectionCubeMap1;
@@ -202,7 +206,7 @@ float3 CalculateReflection_Skybox(float3 viewDir, float4 specular, float4 gbuffe
 	Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(specular.w, -viewDir, normal, specular.xyz);
 	float perceptualRoughness = g.roughness;
 	perceptualRoughness = perceptualRoughness * (1.7 - 0.7*perceptualRoughness);
-	float lod = perceptualRoughnessToMipmapLevel(perceptualRoughness);;
+	float lod = RoughnessToMipLevel(perceptualRoughness);;
     float3 refVec = reflect(viewDir, normal);
    
     float3 specColor = _ReflectionCubeMap.SampleLevel(sampler_ReflectionCubeMap, refVec, lod);
@@ -225,7 +229,7 @@ float4 CalculateReflection_Deferred(float3 worldPos, float3 viewDir, float4 spec
 	Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(specular.w, -viewDir, normal, specular.xyz);
 	float perceptualRoughness = g.roughness;
 	perceptualRoughness = perceptualRoughness * (1.7 - 0.7*perceptualRoughness);
-	float lod = perceptualRoughnessToMipmapLevel(perceptualRoughness);;
+	float lod = RoughnessToMipLevel(perceptualRoughness);;
 	float oneMinusReflectivity = 1 - SpecularStrength(specular.xyz);
 	UnityGIInput d;
 	d.worldPos = worldPos.xyz;
@@ -253,7 +257,7 @@ float3 CalculateReflection(float linearDepth, float3 worldPos, float3 viewDir, f
 	Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(specular.w, -viewDir, normal, specular.xyz);
 	float perceptualRoughness = g.roughness;
 	perceptualRoughness = perceptualRoughness * (1.7 - 0.7*perceptualRoughness);
-	float lod = perceptualRoughnessToMipmapLevel(perceptualRoughness);;
+	float lod = RoughnessToMipLevel(perceptualRoughness);;
 	float oneMinusReflectivity = 1 - SpecularStrength(specular.xyz);
 	UnityGIInput d;
 	d.worldPos = worldPos.xyz;

@@ -1,4 +1,5 @@
-﻿ Shader "Maxwell/StandardLit(Lightmap)" {
+﻿
+ Shader "Maxwell/StandardLit_Tessellation" {
 	Properties {
 		_Color ("Color", Color) = (1,1,1,1)
 		_ClearCoat("Clearcoat", Range(0, 1)) = 0.5
@@ -8,9 +9,14 @@
 		_Cutoff("Cut off", Range(0, 1)) = 0
 		_SpecularIntensity("Specular Intensity", Range(0,1)) = 0.04
 		_MetallicIntensity("Metallic Intensity", Range(0, 1)) = 0.1
+		_MinDist("Min Tessellation Dist", float) = 20
+		_MaxDist("Max Tessellation Dist", float) = 50
+		_Tessellation("Tessellation Intensity", Range(1, 63)) = 1
+		_HeightmapIntensity("Heightmap Intensity", Range(0, 10)) = 0.1
 		_MainTex ("Albedo (RGB)DetailMask(A)", 2D) = "white" {}
 		[NoScaleOffset]_BumpMap("Normal Map", 2D) = "bump" {}
 		[NoScaleOffset]_SpecularMap("R(Smooth)G(Spec)B(Occ)", 2D) = "white"{}
+		[NoScaleOffset]_HeightMap("Height Map", 2D) = "black"{}
 		_DetailAlbedo("Detail Albedo", 2D) = "white"{}
 		[NoScaleOffset]_DetailNormal("Detail Normal", 2D) = "bump"{}
 		_EmissionMultiplier("Emission Multiplier", Range(0, 128)) = 1
@@ -45,8 +51,8 @@ CGINCLUDE
 #include "CGINC/Shader_Include/AreaLight.hlsl"
 #include "CGINC/Sunlight.cginc"
 #include "CGINC/Lighting.cginc"
-#include "CGINC/StandardSurface.cginc"
-#include "CGINC/MPipeDeferred.cginc"
+#include "CGINC/StandardSurface_Tessellation.cginc"
+#include "CGINC/MPipeDeferred_Tessellation.cginc"
 ENDCG
 
 pass
@@ -60,25 +66,31 @@ pass
 	}
 Name "GBuffer"
 Tags {"LightMode" = "GBuffer" "Name" = "GBuffer"}
-ZTest Equal
-ZWrite off
+ZTest Less
+ZWrite on
 Cull back
 CGPROGRAM
 	#pragma multi_compile _ ENABLE_SUN
 	#pragma multi_compile _ ENABLE_SUNSHADOW
 	#pragma multi_compile _ POINTLIGHT
 	#pragma multi_compile _ SPOTLIGHT
-#pragma vertex vert_surf
+#pragma vertex tessvert_surf
+#pragma hull hs_surf
+#pragma domain ds_surf
 #pragma fragment frag_surf
 ENDCG
 }
+
+
 	Pass
 		{
 			ZTest less
 			Cull back
 			Tags {"LightMode" = "Shadow"}
 			CGPROGRAM
-			#pragma vertex vert_shadow
+			#pragma vertex tessvert_mv
+			#pragma hull hs_mv
+			#pragma domain ds_shadow
 			#pragma fragment frag_shadow
 			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
 			#pragma exclude_renderers gles
@@ -100,25 +112,16 @@ ENDCG
 			ZWrite off
 			Tags {"LightMode" = "MotionVector"}
 			CGPROGRAM
-			#pragma vertex vert_mv
+			#pragma vertex tessvert_mv
+			#pragma hull hs_mv
+			#pragma domain ds_mv
 			#pragma fragment frag_mv
 			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
 			#pragma exclude_renderers gles
 
 			ENDCG
 		}
-		Pass
-		{
-			ZTest less
-			Cull back
-			Tags {"LightMode" = "Depth"}
-			CGPROGRAM
-			#pragma vertex vert_depth
-			#pragma fragment frag_depth
-			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
-			#pragma exclude_renderers gles
-			ENDCG
-		}
 }
 	CustomEditor "ShouShouEditor"
 }
+

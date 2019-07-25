@@ -72,7 +72,6 @@ public class ShouShouEditor : ShaderGUI
         }
         else
         {
-
             targetMat.EnableKeyword("CUT_OFF");
             if (targetMat.renderQueue < 2451)
                 targetMat.renderQueue = 2451;

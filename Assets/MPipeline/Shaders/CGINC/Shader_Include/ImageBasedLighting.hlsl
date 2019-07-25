@@ -203,8 +203,8 @@ float2 IBL_Defualt_SpecularIntegrated(float Roughness, float NoV) {
     V.z = NoV;
 
     float2 r = 0;
-	const uint NumSamples = 512;
-
+	const uint NumSamples = 1024;
+    [loop]
     for (uint i = 0; i < NumSamples; i++) {
         float2 E = Hammersley(i, NumSamples, HaltonSequence(i)); 
         float4 H = ImportanceSampleGGX(E, Roughness);

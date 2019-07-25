@@ -1,6 +1,4 @@
-﻿// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel Remove
-#pragma kernel Cull
+﻿#pragma kernel Cull
 #pragma kernel Clear
 #include "../CGINC/Plane.cginc"
 uint _Count;
@@ -15,14 +13,6 @@ RWStructuredBuffer<uint> _CullResultBuffer;
 StructuredBuffer<uint2> _IndexBuffer;
 RWStructuredBuffer<uint> _DispatchBuffer;
 float4 planes[6];
-[numthreads(64, 1, 1)]
-void Remove (uint id : SV_DispatchThreadID)
-{
-    if(id >= _Count) return;
-    uint2 idx = _IndexBuffer[id];
-    _TerrainChunks[idx.x] = _TerrainChunks[idx.y];
-}
-
 [numthreads(64, 1, 1)]
 void Cull(uint id : SV_DISPATCHTHREADID)
 {

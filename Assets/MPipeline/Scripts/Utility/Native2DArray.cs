@@ -24,9 +24,11 @@ namespace MPipeline
                 return ref m_ptr[getLength(index)];
             }
         }
-        public Native2DArray(int2 len, Allocator alloc)
+        public Native2DArray(int2 len, Allocator alloc, bool clearMemory = false)
         {
-            m_ptr = MUnsafeUtility.Malloc<T>(len.x * len.y * sizeof(T), alloc);
+            long size = len.x * len.y * sizeof(T);
+            m_ptr = MUnsafeUtility.Malloc<T>(size, alloc);
+            if (clearMemory) UnsafeUtility.MemClear(m_ptr, size);
             isCreated = true;
             allocator = alloc;
             Length = len;

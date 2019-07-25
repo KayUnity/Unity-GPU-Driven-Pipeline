@@ -23,6 +23,15 @@ public unsafe struct MStringBuilder
             ptrInt[-1] = 0;
         }
     }
+    public void Resize(int size)
+    {
+        if (size > capacity) return;
+        fixed (char* c = str)
+        {
+            int* ptrInt = (int*)c;
+            ptrInt[-1] = size;
+        }
+    }
     public void Add(string tar)
     {
         int lastLength = str.Length;

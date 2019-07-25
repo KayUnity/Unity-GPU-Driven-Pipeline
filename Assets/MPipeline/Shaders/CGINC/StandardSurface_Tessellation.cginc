@@ -1,6 +1,6 @@
 #ifndef __STANDARDSURFACE_INCLUDE__
 #define __STANDARDSURFACE_INCLUDE__
-#include "VirtualTexture.cginc"
+
 	struct Input {
 			float2 uv_MainTex;
 			float3 viewDir;
@@ -19,6 +19,10 @@ cbuffer UnityPerMaterial
 		float _Cutoff;
 		float _ClearCoatSmoothness;
 		float _ClearCoat;
+		float _MinDist;
+		float _MaxDist;
+		float _Tessellation;
+		float _HeightmapIntensity;
 }
 
 		sampler2D _BumpMap;
@@ -28,7 +32,7 @@ cbuffer UnityPerMaterial
 		sampler2D _DetailNormal;
 		sampler2D _EmissionMap;
 		sampler2D _PreIntDefault;
-		Texture2DArray<float4> _SampledVT; SamplerState sampler_SampledVT;
+		Texture2D<float> _HeightMap; SamplerState sampler_HeightMap;
 
 		void surf (Input IN, inout SurfaceOutputStandardSpecular o) {
 			float2 uv = IN.uv_MainTex;// - parallax_mapping(IN.uv_MainTex,IN.viewDir);
@@ -37,7 +41,7 @@ cbuffer UnityPerMaterial
 			// Albedo comes from a texture tinted by color
 			float2 detailUV = TRANSFORM_TEX(uv, _DetailAlbedo);
 			float4 spec = tex2D(_SpecularMap,uv);
-			float4 c = SampleVirtualTexture(_SampledVT, sampler_SampledVT, uv);
+			float4 c = tex2D (_MainTex, uv);
 #if DETAIL_ON
 			float3 detailNormal = UnpackNormal(tex2D(_DetailNormal, detailUV));
 			float4 detailColor = tex2D(_DetailAlbedo, detailUV);
@@ -60,5 +64,11 @@ cbuffer UnityPerMaterial
 #endif
 			o.Emission = _EmissionColor * tex2D(_EmissionMap, uv) * _EmissionMultiplier;
 		}
+
+
+void VertexOffset(inout float4 vertex, float3 normal, float2 uv)
+{
+	vertex.xyz += _HeightMap.SampleLevel(sampler_HeightMap, uv, 0) * normal * _HeightmapIntensity;
+}
 
 #endif

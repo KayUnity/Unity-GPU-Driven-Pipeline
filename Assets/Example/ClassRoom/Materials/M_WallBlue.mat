@@ -99,8 +99,10 @@ Material:
     - _GlossyReflections: 1
     - _Keyword0: 0
     - _LightingModel: 1
+    - _MaxDist: 50
     - _Metallic: 0
     - _MetallicIntensity: 0
+    - _MinDist: 20
     - _Mode: 0
     - _NormalIntencity: 1
     - _NormalIntensity: 0.16
@@ -113,6 +115,7 @@ Material:
     - _SpecularIntensity: 0.04
     - _SrcBlend: 1
     - _Stencil: 1
+    - _Tessellation: 1
     - _ToggleSwitch0: 1
     - _UVSec: 0
     - _UseAlbedoTexture: 1
@@ -120,6 +123,7 @@ Material:
     - _UseRoughnessTexture: 0
     - _UseTexture: 1
     - _ZTest: 2
+    - _ZTestWay: 4
     - _ZWrite: 1
     - __dirty: 0
     m_Colors:

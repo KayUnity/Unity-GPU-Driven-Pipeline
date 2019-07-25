@@ -52,6 +52,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _HeightMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 2800000, guid: c5a53bd9810a6a242835c2a5de4a9655, type: 3}
         m_Scale: {x: 3, y: 3}
@@ -98,10 +102,13 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.36
     - _GlossyReflections: 1
+    - _HeightmapIntensity: 0
     - _Keyword0: 0
     - _LightingModel: 1
+    - _MaxDist: 50
     - _Metallic: 0
     - _MetallicIntensity: 0.1
+    - _MinDist: 20
     - _Mode: 0
     - _NormalIntencity: 1
     - _NormalIntensity: 0.1
@@ -114,6 +121,7 @@ Material:
     - _SpecularIntensity: 0.04
     - _SrcBlend: 1
     - _Stencil: 1
+    - _Tessellation: 2
     - _ToggleSwitch0: 1
     - _UVSec: 0
     - _UseAlbedoTexture: 1
@@ -121,6 +129,7 @@ Material:
     - _UseRoughnessTexture: 0
     - _UseTexture: 1
     - _ZTest: 2
+    - _ZTestWay: 4
     - _ZWrite: 1
     - __dirty: 0
     m_Colors:

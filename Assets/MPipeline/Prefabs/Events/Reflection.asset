@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Reflection
   m_EditorClassIdentifier: 
   enabled: 1
-  backgroundCubemap: {fileID: 8900000, guid: c9f77ead4bfe62047bc1c72c41f63436, type: 3}
+  backgroundCubemap: {fileID: 8900000, guid: 0c03b04cb2b8140479f0fceba926db06, type: 3}
   availiableDistance: 100
   ssrEvents:
-    enabled: 1
+    enabled: 0
     Thickness: 0.3
     brdfBias: 0.7
     ScreenFade: 0

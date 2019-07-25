@@ -9,27 +9,7 @@ using MPipeline;
 using Unity.Mathematics;
 using System;
 using static Unity.Mathematics.math;
-public class TextureCombiner : ScriptableWizard
-{
-    public string path = "Assets/";
-    public string fileName = "xxx";
-    public Texture2D[] textures;
-    [MenuItem("MPipeline/Texture Combiner")]
-    private static void CreateWizard()
-    {
-        DisplayWizard<TextureCombiner>("Texture Combiner", "Combine");
-    }
-    private void OnWizardCreate()
-    {
-        Texture2DArray arr = new Texture2DArray(textures[0].width, textures[0].height, textures.Length, textures[0].format, false, true);
-        for (int i = 0; i < textures.Length; ++i)
-        {
-            arr.SetPixels(textures[i].GetPixels(), i);
-        }
-        arr.Apply();
-        AssetDatabase.CreateAsset(arr, path + fileName + ".asset");
-    }
-}
+
 public class CombineMesh : ScriptableWizard
 {
     [MenuItem("MPipeline/Combine Mesh")]
@@ -247,7 +227,6 @@ public class TransformShader : EditorWindow
         }
         else
         {
-
             targetMat.EnableKeyword("CUT_OFF");
             if (targetMat.renderQueue < 2451)
                 targetMat.renderQueue = 2451;
@@ -263,10 +242,7 @@ public class TransformShader : EditorWindow
     }
     private void Execute(Action<Material, MeshRenderer> func)
     {
-        Transform[] trans = Selection.GetTransforms(SelectionMode.Unfiltered);
-        List<MeshRenderer> lights = new List<MeshRenderer>();
-        foreach (var i in trans)
-            lights.AddRange(i.GetComponentsInChildren<MeshRenderer>());
+        var lights = FindObjectsOfType<MeshRenderer>();
         Dictionary<Material, MeshRenderer> allMats = new Dictionary<Material, MeshRenderer>();
         foreach (var i in lights)
         {

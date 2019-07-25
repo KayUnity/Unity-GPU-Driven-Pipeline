@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: M_BlackBord_Left
   m_Shader: {fileID: 4800000, guid: f7f0d8bc677efcc44b8b3ea293d2b74f, type: 3}
-  m_ShaderKeywords: LIT_ENABLE _USEALBEDOTEXTURE_ON _USETEXTURE_ON
+  m_ShaderKeywords: DEFAULT_LIT LIT_ENABLE _USEALBEDOTEXTURE_ON _USETEXTURE_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -92,6 +92,8 @@ Material:
     - _AlbedoBrigness: 1
     - _AlbedoTextureBrigeness: 0
     - _BumpScale: 1
+    - _ClearCoat: 0.5
+    - _ClearCoatSmoothness: 0.5
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
@@ -101,8 +103,10 @@ Material:
     - _GlossyReflections: 1
     - _Keyword0: 0
     - _LightingModel: 1
+    - _MaxDist: 50
     - _Metallic: 0
     - _MetallicIntensity: 0.1
+    - _MinDist: 20
     - _Mode: 0
     - _NormalIntencity: 1
     - _NormalIntensity: 0.25
@@ -115,6 +119,7 @@ Material:
     - _SpecularIntensity: 0.04
     - _SrcBlend: 1
     - _Stencil: 1
+    - _Tessellation: 1
     - _ToggleSwitch0: 1
     - _UVSec: 0
     - _UseAlbedoTexture: 1
@@ -122,6 +127,7 @@ Material:
     - _UseRoughnessTexture: 0
     - _UseTexture: 1
     - _ZTest: 2
+    - _ZTestWay: 4
     - _ZWrite: 1
     - __dirty: 0
     m_Colors:

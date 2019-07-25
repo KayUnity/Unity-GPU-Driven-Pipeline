@@ -36,10 +36,9 @@ namespace MPipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetDataPtr<T>(this ComputeBuffer buffer, T* dataPoint, int length) where T : unmanaged
         {
-#if UNITY_EDITOR
-            if (length <= 0) throw new System.Exception("Length can not be zero!");
-#endif
+            if (length <= 0) return;
             NativeArray<T> arr = new NativeArray<T>(0, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            UnsafeUtility.Free(arr.GetUnsafePtr(), Allocator.Temp);
             ulong* arrPtr = (ulong*)UnsafeUtility.AddressOf(ref arr);
             arrPtr[0] = (ulong)dataPoint;
             arrPtr[1] = (ulong)length;
@@ -49,10 +48,9 @@ namespace MPipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetDataPtr<T>(this ComputeBuffer buffer, T* dataPoint, int bufferStart, int length) where T : unmanaged
         {
-#if UNITY_EDITOR
-            if (length <= 0) throw new System.Exception("Length can not be zero!");
-#endif
+            if (length <= 0) return;
             NativeArray<T> arr = new NativeArray<T>(0, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            UnsafeUtility.Free(arr.GetUnsafePtr(), Allocator.Temp);
             ulong* arrPtr = (ulong*)UnsafeUtility.AddressOf(ref arr);
             arrPtr[0] = (ulong)dataPoint;
             arrPtr[1] = (ulong)length;

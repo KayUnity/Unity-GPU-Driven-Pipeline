@@ -110,7 +110,7 @@ namespace MPipeline
             }
             if(!preintDefaultRT)
             {
-                preintDefaultRT = new RenderTexture(512, 512, 0, RenderTextureFormat.RGHalf, RenderTextureReadWrite.Linear);
+                preintDefaultRT = new RenderTexture(512, 512, 0, RenderTextureFormat.RG16, RenderTextureReadWrite.Linear);
                 preintDefaultRT.filterMode = FilterMode.Bilinear;
                 preintDefaultRT.Create();
                 data.buffer.BlitSRT(preintDefaultRT, preintMat, 0);

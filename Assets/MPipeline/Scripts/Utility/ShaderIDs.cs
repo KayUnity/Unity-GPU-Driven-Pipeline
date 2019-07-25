@@ -166,4 +166,9 @@ public static partial class ShaderIDs
     public static readonly int _TerrainChunks = Shader.PropertyToID("_TerrainChunks");
     public static readonly int _CullResultBuffer = Shader.PropertyToID("_CullResultBuffer");
     public static readonly int _DispatchBuffer = Shader.PropertyToID("_DispatchBuffer");
+
+    public static readonly int _BlendTex = Shader.PropertyToID("_BlendTex");
+    public static readonly int _OffsetScale = Shader.PropertyToID("_OffsetScale");
+    public static readonly int _BlendTex_TexelSize = Shader.PropertyToID("_BlendTex_TexelSize");
+    public static readonly int _BlendAlpha = Shader.PropertyToID("_BlendAlpha");
 }
