@@ -98,10 +98,10 @@ public class ColliderClear : ScriptableWizard
     private void OnWizardCreate()
     {
         Transform[] trans = Selection.GetTransforms(SelectionMode.Unfiltered);
-        foreach(var t in trans)
+        foreach (var t in trans)
         {
             Collider[] cs = t.GetComponentsInChildren<Collider>();
-            foreach(var c in cs)
+            foreach (var c in cs)
             {
                 DestroyImmediate(c);
             }
@@ -122,22 +122,22 @@ public class ColliderHelper : EditorWindow
     private void OnGUI()
     {
         parent = (Transform)EditorGUILayout.ObjectField("Parent", parent, typeof(Transform), true);
-        
+
         Transform[] trans = Selection.GetTransforms(SelectionMode.Unfiltered);
-        if(GUILayout.Button("Disable Without"))
+        if (GUILayout.Button("Disable Without"))
         {
             Transform[] ts = parent.GetComponentsInChildren<Transform>(true);
-            foreach(var i in ts)
+            foreach (var i in ts)
             {
                 i.gameObject.SetActive(false);
             }
-            foreach(var i in trans)
+            foreach (var i in trans)
             {
                 i.gameObject.SetActive(true);
             }
             parent.gameObject.SetActive(true);
         }
-        if(GUILayout.Button("Enable All"))
+        if (GUILayout.Button("Enable All"))
         {
             Transform[] ts = parent.GetComponentsInChildren<Transform>(true);
             foreach (var i in ts)
@@ -163,11 +163,19 @@ public class TransformShader : EditorWindow
     public static void SetMat(Material targetMat)
     {
         bool useMotionVector = targetMat.GetShaderPassEnabled("MotionVector");
-        targetMat.SetShaderPassEnabled("MotionVector", useMotionVector);
         bool targetMatEnabled = targetMat.IsKeywordEnabled("CUT_OFF");
-        bool useRainning = targetMat.IsKeywordEnabled("USE_RANNING");
+        bool targetUseDecal = targetMat.IsKeywordEnabled("USE_DECAL");
+        bool targetUseTessellation = targetMat.IsKeywordEnabled("USE_TESSELLATION");
         LightingModelType currentType = (LightingModelType)targetMat.GetInt("_LightingModel");
-        targetMat.SetInt("_LightingModel", (int)currentType);
+        
+        if (targetUseTessellation)
+        {
+            targetMat.EnableKeyword("USE_TESSELLATION");
+        }
+        else
+        {
+            targetMat.DisableKeyword("USE_TESSELLATION");
+        }
         if (currentType != LightingModelType.Unlit)
         {
             targetMat.EnableKeyword("LIT_ENABLE");
@@ -175,14 +183,6 @@ public class TransformShader : EditorWindow
         else
         {
             targetMat.DisableKeyword("LIT_ENABLE");
-        }
-        if (useRainning)
-        {
-            targetMat.EnableKeyword("USE_RANNING");
-        }
-        else
-        {
-            targetMat.DisableKeyword("USE_RANNING");
         }
         switch (currentType)
         {
@@ -217,19 +217,28 @@ public class TransformShader : EditorWindow
                 targetMat.DisableKeyword("CLEARCOAT_LIT");
                 break;
         }
-        targetMat.SetInt("_ZTest", targetMatEnabled ? (int)UnityEngine.Rendering.CompareFunction.Equal : (int)UnityEngine.Rendering.CompareFunction.Less);
-        targetMat.SetInt("_ZWrite", targetMatEnabled ? 0 : 1);
         if (!targetMatEnabled)
         {
-            targetMat.DisableKeyword("CUT_OFF");
-            if (targetMat.renderQueue > 2450)
+            if (targetUseTessellation)
+                targetMat.renderQueue = 2450;
+            else
                 targetMat.renderQueue = 2000;
         }
         else
         {
-            targetMat.EnableKeyword("CUT_OFF");
-            if (targetMat.renderQueue < 2451)
-                targetMat.renderQueue = 2451;
+            targetMat.renderQueue = 2451;
+        }
+        if (targetUseTessellation)
+        {
+            targetMat.renderQueue = 2450;
+        }
+        if (targetUseDecal)
+        {
+            targetMat.EnableKeyword("USE_DECAL");
+        }
+        else
+        {
+            targetMat.DisableKeyword("USE_DECAL");
         }
         if (targetMat.GetTexture("_DetailAlbedo") == null && targetMat.GetTexture("_DetailNormal") == null)
         {

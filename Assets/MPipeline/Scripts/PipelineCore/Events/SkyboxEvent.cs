@@ -32,6 +32,7 @@ namespace MPipeline
         }
         public override void PreRenderFrame(PipelineCamera cam, ref PipelineCommandData data)
         {
+            if (!skyboxMaterial) return;
             job.up = cam.cam.transform.up;
             job.forward = cam.cam.transform.forward;
             job.right = cam.cam.transform.right;
@@ -41,6 +42,7 @@ namespace MPipeline
         }
         public override void FrameUpdate(PipelineCamera camera, ref PipelineCommandData data)
         {
+            if (!skyboxMaterial) return;
             CommandBuffer buffer = data.buffer;
             handle.Complete();
             SkyboxPreviewMatrix last = IPerCameraData.GetProperty(camera, () => new SkyboxPreviewMatrix());

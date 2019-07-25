@@ -16,6 +16,8 @@ public class ShouShouEditor : ShaderGUI
         targetMat.SetShaderPassEnabled("MotionVector", useMotionVector);
         bool targetMatEnabled = targetMat.IsKeywordEnabled("CUT_OFF");
         bool targetUseDecal = targetMat.IsKeywordEnabled("USE_DECAL");
+        bool targetUseTessellation = targetMat.IsKeywordEnabled("USE_TESSELLATION");
+        targetUseTessellation = EditorGUILayout.Toggle("Tessellation", targetUseTessellation);
         targetMatEnabled = EditorGUILayout.Toggle("Cut off", targetMatEnabled);
         targetUseDecal = EditorGUILayout.Toggle("Use Decal", targetUseDecal);
 
@@ -23,6 +25,14 @@ public class ShouShouEditor : ShaderGUI
         currentType = (LightingModelType)EditorGUILayout.EnumPopup("Lighting Model", currentType);
         Undo.RecordObject(targetMat, targetMat.name);
         targetMat.SetInt("_LightingModel", (int)currentType);
+        if (targetUseTessellation)
+        {
+            targetMat.EnableKeyword("USE_TESSELLATION");
+        }
+        else
+        {
+            targetMat.DisableKeyword("USE_TESSELLATION");
+        }
         if (currentType != LightingModelType.Unlit)
         {
             targetMat.EnableKeyword("LIT_ENABLE");
@@ -67,14 +77,15 @@ public class ShouShouEditor : ShaderGUI
         if (!targetMatEnabled)
         {
             targetMat.DisableKeyword("CUT_OFF");
-            if (targetMat.renderQueue > 2450)
+            if (targetUseTessellation)
+                targetMat.renderQueue = 2450;
+            else
                 targetMat.renderQueue = 2000;
         }
         else
         {
             targetMat.EnableKeyword("CUT_OFF");
-            if (targetMat.renderQueue < 2451)
-                targetMat.renderQueue = 2451;
+            targetMat.renderQueue = 2451;
         }
         if (targetUseDecal)
         {

@@ -113,9 +113,7 @@ namespace MPipeline
                 enableDynamicBatching = false,
                 enableInstancing = false
             };
-            DrawingSettings depthOpaqueDrawSettings;
-
-            depthOpaqueDrawSettings = new DrawingSettings(new ShaderTagId("Depth"),
+            DrawingSettings depthOpaqueDrawSettings = new DrawingSettings(new ShaderTagId("Depth"),
                 new SortingSettings(cam.cam) { criteria = SortingCriteria.QuantizedFrontToBack })
             {
                 perObjectData = UnityEngine.Rendering.PerObjectData.None,

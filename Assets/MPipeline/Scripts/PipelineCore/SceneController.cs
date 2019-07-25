@@ -189,7 +189,7 @@ namespace MPipeline
             data.ExecuteCommandBuffer();
             FilteringSettings renderSettings = new FilteringSettings()
             {
-                renderQueueRange = new RenderQueueRange(2000, 2449),
+                renderQueueRange = new RenderQueueRange(2000, 2450),
                 layerMask = mask,
                 renderingLayerMask = 1
             };
@@ -202,7 +202,7 @@ namespace MPipeline
             cullParams.cullingOptions = CullingOptions.ForceEvenIfCameraIsNotActive;
             CullingResults results = data.context.Cull(ref cullParams);
             data.context.DrawRenderers(results, ref dsettings, ref renderSettings);
-            renderSettings.renderQueueRange = new RenderQueueRange(2450, 2499);
+            renderSettings.renderQueueRange = new RenderQueueRange(2451, 2499);
             dsettings.overrideMaterial = null;
             dsettings.overrideMaterialPassIndex = 0;
             data.context.DrawRenderers(results, ref dsettings, ref renderSettings);
@@ -263,7 +263,7 @@ namespace MPipeline
                 data.ExecuteCommandBuffer();
                 FilteringSettings renderSettings = new FilteringSettings()
                 {
-                    renderQueueRange = new RenderQueueRange(2000, 2449),
+                    renderQueueRange = new RenderQueueRange(2000, 2450),
                     layerMask = sunLight.shadowMask,
                     renderingLayerMask = 1
                 };
@@ -278,7 +278,7 @@ namespace MPipeline
                 cullParams.cullingOptions = CullingOptions.ForceEvenIfCameraIsNotActive;
                 CullingResults results = data.context.Cull(ref cullParams);
                 data.context.DrawRenderers(results, ref dsettings, ref renderSettings);
-                renderSettings.renderQueueRange = new RenderQueueRange(2450, 2499);
+                renderSettings.renderQueueRange = new RenderQueueRange(2451, 2499);
                 dsettings.overrideMaterial = null;
                 dsettings.overrideMaterialPassIndex = 0;
                 data.context.DrawRenderers(results, ref dsettings, ref renderSettings);
@@ -305,13 +305,13 @@ namespace MPipeline
             cb.EnableShaderKeyword("POINT_LIGHT_SHADOW");
             FilteringSettings renderSettings = new FilteringSettings()
             {
-                renderQueueRange = new RenderQueueRange(2450, 2499),
+                renderQueueRange = new RenderQueueRange(2451, 2499),
                 layerMask = mask,
                 renderingLayerMask = 1
             };
             FilteringSettings opaqueRenderSettings = new FilteringSettings()
             {
-                renderQueueRange = new RenderQueueRange(2000, 2449),
+                renderQueueRange = new RenderQueueRange(2000, 2450),
                 layerMask = mask,
                 renderingLayerMask = 1
             };

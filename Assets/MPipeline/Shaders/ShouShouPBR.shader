@@ -7,18 +7,21 @@
 		_ClearCoatSmoothness("Secondary Smoothness", Range(0, 1)) = 0.5
 		_Occlusion("Occlusion Scale", Range(0,1)) = 1
 		_Cutoff("Cut off", Range(0, 1)) = 0
-		_SpecularIntensity("Specular Intensity", Range(0,1)) = 0.3
+		_SpecularIntensity("Specular Intensity", Range(0,1)) = 0.04
 		_MetallicIntensity("Metallic Intensity", Range(0, 1)) = 0.1
+		_MinDist("Min Tessellation Dist", float) = 20
+		_MaxDist("Max Tessellation Dist", float) = 50
+		_Tessellation("Tessellation Intensity", Range(1, 63)) = 1
+		_HeightmapIntensity("Heightmap Intensity", Range(0, 10)) = 0.1
 		_MainTex ("Albedo (RGB)DetailMask(A)", 2D) = "white" {}
-		_BumpMap("Normal Map", 2D) = "bump" {}
-		_SpecularMap("R(Smooth)G(Spec)B(Occ)", 2D) = "white"{}
+		[NoScaleOffset]_BumpMap("Normal Map", 2D) = "bump" {}
+		[NoScaleOffset]_SpecularMap("R(Smooth)G(Spec)B(Occ)", 2D) = "white"{}
+		[NoScaleOffset]_HeightMap("Height Map", 2D) = "black"{}
 		_DetailAlbedo("Detail Albedo", 2D) = "white"{}
-		_DetailNormal("Detail Normal", 2D) = "bump"{}
+		[NoScaleOffset]_DetailNormal("Detail Normal", 2D) = "bump"{}
 		_EmissionMultiplier("Emission Multiplier", Range(0, 128)) = 1
 		_EmissionColor("Emission Color", Color) = (0,0,0,1)
-		_EmissionMap("Emission Map", 2D) = "white"{}
-		[HideInInspector]_ZTest("zw", Int) = 0
-		[HideInInspector]_ZWrite("zww", Int) = 0
+		[NoScaleOffset]_EmissionMap("Emission Map", 2D) = "white"{}
 		[HideInInspector]_LightingModel("lm", Int) = 1
 	}
     SubShader
@@ -31,6 +34,10 @@
         #pragma surface surf StandardSpecular fullforwardshadows
 #pragma shader_feature DETAIL_ON
 #pragma multi_compile _ CUT_OFF
+#pragma multi_compile __ LIT_ENABLE
+#pragma multi_compile __ DEFAULT_LIT SKIN_LIT CLOTH_LIT CLEARCOAT_LIT
+#pragma multi_compile __ USE_DECAL
+#pragma multi_compile __ USE_TESSELLATION
         #pragma target 5.0
             struct Input
         {

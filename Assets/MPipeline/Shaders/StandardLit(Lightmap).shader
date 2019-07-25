@@ -8,9 +8,14 @@
 		_Cutoff("Cut off", Range(0, 1)) = 0
 		_SpecularIntensity("Specular Intensity", Range(0,1)) = 0.04
 		_MetallicIntensity("Metallic Intensity", Range(0, 1)) = 0.1
+		_MinDist("Min Tessellation Dist", float) = 20
+		_MaxDist("Max Tessellation Dist", float) = 50
+		_Tessellation("Tessellation Intensity", Range(1, 63)) = 1
+		_HeightmapIntensity("Heightmap Intensity", Range(0, 10)) = 0.1
 		_MainTex ("Albedo (RGB)DetailMask(A)", 2D) = "white" {}
 		[NoScaleOffset]_BumpMap("Normal Map", 2D) = "bump" {}
 		[NoScaleOffset]_SpecularMap("R(Smooth)G(Spec)B(Occ)", 2D) = "white"{}
+		[NoScaleOffset]_HeightMap("Height Map", 2D) = "black"{}
 		_DetailAlbedo("Detail Albedo", 2D) = "white"{}
 		[NoScaleOffset]_DetailNormal("Detail Normal", 2D) = "bump"{}
 		_EmissionMultiplier("Emission Multiplier", Range(0, 128)) = 1
@@ -25,15 +30,14 @@
 	// ------------------------------------------------------------
 	// Surface shader code generated out of a CGPROGRAM block:
 CGINCLUDE
-#pragma shader_feature DETAIL_ON
+
 #pragma multi_compile __ LIGHTMAP_ON
 #pragma target 5.0
 #define DECAL
 
 #pragma multi_compile __ CUT_OFF
-#pragma multi_compile __ LIT_ENABLE
-#pragma multi_compile __ DEFAULT_LIT SKIN_LIT CLOTH_LIT CLEARCOAT_LIT
-#pragma multi_compile __ USE_DECAL
+
+#pragma multi_compile __ USE_TESSELLATION
 
 //#define MOTION_VECTOR
 #include "UnityCG.cginc"
@@ -64,14 +68,22 @@ ZTest Equal
 ZWrite off
 Cull back
 CGPROGRAM
+#pragma multi_compile __ LIT_ENABLE
+#pragma shader_feature DETAIL_ON
+#pragma multi_compile __ DEFAULT_LIT SKIN_LIT CLOTH_LIT CLEARCOAT_LIT
+#pragma multi_compile __ USE_DECAL
 	#pragma multi_compile _ ENABLE_SUN
 	#pragma multi_compile _ ENABLE_SUNSHADOW
 	#pragma multi_compile _ POINTLIGHT
 	#pragma multi_compile _ SPOTLIGHT
-#pragma vertex vert_surf
+#pragma vertex tessvert_surf
+#pragma hull hs_surf
+#pragma domain ds_surf
 #pragma fragment frag_surf
 ENDCG
 }
+
+
 	Pass
 		{
 			ZTest less
@@ -100,7 +112,9 @@ ENDCG
 			ZWrite off
 			Tags {"LightMode" = "MotionVector"}
 			CGPROGRAM
-			#pragma vertex vert_mv
+			#pragma vertex tessvert_mv
+			#pragma hull hs_mv
+			#pragma domain ds_mv
 			#pragma fragment frag_mv
 			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
 			#pragma exclude_renderers gles
@@ -113,7 +127,9 @@ ENDCG
 			Cull back
 			Tags {"LightMode" = "Depth"}
 			CGPROGRAM
-			#pragma vertex vert_depth
+			#pragma vertex tessvert_mv
+			#pragma hull hs_mv
+			#pragma domain ds_depth
 			#pragma fragment frag_depth
 			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
 			#pragma exclude_renderers gles
@@ -122,3 +138,4 @@ ENDCG
 }
 	CustomEditor "ShouShouEditor"
 }
+

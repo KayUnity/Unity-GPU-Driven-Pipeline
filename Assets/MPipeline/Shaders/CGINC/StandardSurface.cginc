@@ -19,6 +19,10 @@ cbuffer UnityPerMaterial
 		float _Cutoff;
 		float _ClearCoatSmoothness;
 		float _ClearCoat;
+		float _MinDist;
+		float _MaxDist;
+		float _Tessellation;
+		float _HeightmapIntensity;
 }
 
 		sampler2D _BumpMap;
@@ -28,6 +32,7 @@ cbuffer UnityPerMaterial
 		sampler2D _DetailNormal;
 		sampler2D _EmissionMap;
 		sampler2D _PreIntDefault;
+		Texture2D<float> _HeightMap; SamplerState sampler_HeightMap;
 
 		void surf (Input IN, inout SurfaceOutputStandardSpecular o) {
 			float2 uv = IN.uv_MainTex;// - parallax_mapping(IN.uv_MainTex,IN.viewDir);
@@ -59,5 +64,11 @@ cbuffer UnityPerMaterial
 #endif
 			o.Emission = _EmissionColor * tex2D(_EmissionMap, uv) * _EmissionMultiplier;
 		}
+
+
+void VertexOffset(inout float4 vertex, float3 normal, float2 uv)
+{
+	vertex.xyz += _HeightMap.SampleLevel(sampler_HeightMap, uv, 0) * normal * _HeightmapIntensity;
+}
 
 #endif

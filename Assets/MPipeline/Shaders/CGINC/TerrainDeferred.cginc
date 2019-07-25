@@ -97,15 +97,10 @@ void frag_surf (v2f_surf IN,
 					  float3 multiScatter;
   					float3 preint = PreintegratedDGF_LUT(_PreIntDefault, multiScatter, outGBuffer1.xyz, Roughness, dot(o.Normal, worldViewDir));
 					outGBuffer1.xyz *= multiScatter;
-	UnityStandardData standardData;
-	            standardData.occlusion = outGBuffer0.a;
-	            standardData.diffuseColor = outGBuffer0.rgb;
-	            standardData.specularColor = outGBuffer1.rgb;
-	            standardData.smoothness = outGBuffer1.a;
 					
 					GeometryBuffer buffer;
-					buffer.AlbedoColor = standardData.diffuseColor;
-					buffer.SpecularColor = standardData.specularColor;
+					buffer.AlbedoColor = outGBuffer0.rgb;
+					buffer.SpecularColor = outGBuffer1.rgb;
 					buffer.Roughness = Roughness;
 #if CLEARCOAT_LIT
 					buffer.ClearCoat_MultiScatterEnergy = multiScatter;

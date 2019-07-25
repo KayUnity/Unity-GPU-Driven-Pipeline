@@ -9,6 +9,12 @@
 #include "DecalShading.cginc"
 #include "Shader_Include/ImageBasedLighting.hlsl"
 
+#ifdef UNITY_CAN_COMPILE_TESSELLATION
+struct UnityTessellationFactors {
+    float edge[3] : SV_TessFactor;
+    float inside : SV_InsideTessFactor;
+};
+#endif // UNITY_CAN_COMPILE_TESSELLATION
 #define GetScreenPos(pos) ((float2(pos.x, pos.y) * 0.5) / pos.w + 0.5)
 
 float4 ProceduralStandardSpecular_Deferred (inout SurfaceOutputStandardSpecular s, out float4 outGBuffer0, out float4 outGBuffer1, out float4 outGBuffer2)
@@ -30,10 +36,53 @@ float4 ProceduralStandardSpecular_Deferred (inout SurfaceOutputStandardSpecular 
 		float4 emission = float4(s.Emission, 1);
     return emission;
 }
+inline float3 UnityCalcTriEdgeTessFactors (float3 triVertexFactors)
+{
+    float3 tess;
+    tess.x = 0.5 * (triVertexFactors.y + triVertexFactors.z);
+    tess.y = 0.5 * (triVertexFactors.x + triVertexFactors.z);
+    tess.z = 0.5 * (triVertexFactors.x + triVertexFactors.y);
+    return tess;
+}
+
+
+inline float UnityCalcDistanceTessFactor (float4 vertex, float minDist, float maxDist, float tess)
+{
+    float3 wpos = mul(unity_ObjectToWorld,vertex).xyz;
+    float dist = distance (wpos, _WorldSpaceCameraPos);
+    float f = clamp(1.0 - (dist - minDist) / (maxDist - minDist), 0.01, 1.0) * tess;
+    return f;
+}
+
+inline float3 tessDist (float4 v0, float4 v1, float4 v2)
+{
+    float3 f;
+    f.x = UnityCalcDistanceTessFactor (v0,_MinDist,_MaxDist,_Tessellation);
+    f.y = UnityCalcDistanceTessFactor (v1,_MinDist,_MaxDist,_Tessellation);
+    f.z = UnityCalcDistanceTessFactor (v2,_MinDist,_MaxDist,_Tessellation);
+   	return UnityCalcTriEdgeTessFactors (f);
+
+}
+
+
 float4x4 _LastVp;
 float4x4 _NonJitterVP;
 float3 _SceneOffset;
-
+///////////////
+//Geometry Pass
+///////////////
+struct InternalTessInterp_appdata_full {
+  float4 vertex : INTERNALTESSPOS;
+  float4 tangent : TANGENT;
+  float3 normal : NORMAL;
+  float2 texcoord : TEXCOORD0;
+  #if LIGHTMAP_ON
+  float2 lightmapUV : TEXCOORD1;
+  #endif
+  #ifdef USE_UV4
+  float2 uv4 : TEXCOORD3;
+  #endif
+};
 struct v2f_surf {
   UNITY_POSITION(pos);
   float2 pack0 : TEXCOORD0; 
@@ -62,8 +111,52 @@ struct appdata
 	#endif
 };
 
+
+
 StructuredBuffer<float3x4> _LastFrameModel;
 uint _OffsetIndex;
+
+inline InternalTessInterp_appdata_full tessvert_surf (appdata v) {
+  InternalTessInterp_appdata_full o;
+  o.vertex = v.vertex;
+  o.tangent = v.tangent;
+  o.normal = v.normal;
+  o.texcoord = v.texcoord;
+  #if LIGHTMAP_ON
+  o.lightmapUV = v.lightmapUV;
+  #endif
+  #ifdef USE_UV4
+  o.uv4 = v.uv4;
+  #endif
+  return o;
+}
+
+inline UnityTessellationFactors hsconst_surf (InputPatch<InternalTessInterp_appdata_full,3> v) {
+  UnityTessellationFactors o;
+  #ifdef USE_TESSELLATION
+  float3 tf = (tessDist(v[0].vertex, v[1].vertex, v[2].vertex));
+  float3 objCP = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos,1)).xyz;
+  bool3 dir = 0 < float3(dot(objCP - v[0].vertex, v[0].normal), dot(objCP - v[1].vertex, v[1].normal), dot(objCP - v[2].vertex, v[2].normal));
+  tf = (dir.x + dir.y + dir.z) ? tf : 0;
+  o.edge[0] = tf.x;
+  o.edge[1] = tf.y;
+  o.edge[2] = tf.z;
+  o.inside = (tf.x + tf.y + tf.z) * 0.33333333;
+  #else
+  o = (UnityTessellationFactors)1;
+  #endif
+  return o;
+}
+
+[UNITY_domain("tri")]
+[UNITY_partitioning("fractional_odd")]
+[UNITY_outputtopology("triangle_cw")]
+[UNITY_patchconstantfunc("hsconst_surf")]
+[UNITY_outputcontrolpoints(3)]
+inline InternalTessInterp_appdata_full hs_surf (InputPatch<InternalTessInterp_appdata_full,3> v, uint id : SV_OutputControlPointID) {
+  return v[id];
+}
+
 v2f_surf vert_surf (appdata v) 
 {
   	v2f_surf o;
@@ -85,18 +178,30 @@ v2f_surf vert_surf (appdata v)
 		#if LIGHTMAP_ON 
 		o.lightmapUV = v.lightmapUV * unity_LightmapST.xy + unity_LightmapST.zw;
 		#endif
-		/*
-				o.nonJitterScreenPos = ComputeScreenPos(mul(_NonJitterVP, worldPos)).xyw;
-				#ifdef MOTION_VECTOR
-				float4 lastWorldPos =  mul(_LastFrameModel, v.vertex);
-				lastWorldPos = lerp(worldPos, lastWorldPos, _LastFrameModel[3][3]);
-        o.lastScreenPos = ComputeScreenPos(mul(_LastVp, lastWorldPos)).xyw;
-        #else
-				o.lastScreenPos = ComputeScreenPos(mul(_LastVp, worldPos)).xyw;
-				#endif
-				o.screenPos = ComputeScreenPos(o.pos).xyw;*/
   	return o;
 }
+
+
+[UNITY_domain("tri")]
+inline v2f_surf ds_surf (UnityTessellationFactors tessFactors, const OutputPatch<InternalTessInterp_appdata_full,3> vi, float3 bary : SV_DomainLocation) {
+  appdata v;
+
+  v.vertex = vi[0].vertex*bary.x + vi[1].vertex*bary.y + vi[2].vertex*bary.z;
+
+  v.tangent = vi[0].tangent*bary.x + vi[1].tangent*bary.y + vi[2].tangent*bary.z;
+  v.normal = vi[0].normal*bary.x + vi[1].normal*bary.y + vi[2].normal*bary.z;
+  v.texcoord = vi[0].texcoord*bary.x + vi[1].texcoord*bary.y + vi[2].texcoord*bary.z;
+  #if LIGHTMAP_ON
+  v.lightmapUV = vi[0].lightmapUV*bary.x + vi[1].lightmapUV*bary.y + vi[2].lightmapUV*bary.z;
+  #endif
+  #ifdef USE_UV4
+  v.uv4 = vi[0].uv4*bary.x + vi[1].uv4*bary.y + vi[2].uv4*bary.z;
+  #endif
+  VertexOffset(v.vertex, v.normal, v.texcoord);
+  v2f_surf o = vert_surf (v);
+  return o;
+}
+
 
 void frag_surf (v2f_surf IN,
 		out float4 outGBuffer0 : SV_Target0,
@@ -118,6 +223,7 @@ void frag_surf (v2f_surf IN,
   float3 worldViewDir = normalize(_WorldSpaceCameraPos - worldPos.xyz);
   SurfaceOutputStandardSpecular o;
   float3x3 wdMatrix= float3x3(normalize(IN.worldTangent.xyz), normalize(IN.worldBinormal.xyz), normalize(IN.worldNormal.xyz));
+  surfIN.viewDir = worldViewDir;
   // call surface function
   surf (surfIN, o);
   #if USE_DECAL
@@ -141,15 +247,10 @@ void frag_surf (v2f_surf IN,
 					  float3 multiScatter;
   					float3 preint = PreintegratedDGF_LUT(_PreIntDefault, multiScatter, outGBuffer1.xyz, Roughness, dot(o.Normal, worldViewDir));
 					  outGBuffer1.xyz *= multiScatter;
-	UnityStandardData standardData;
-	            standardData.occlusion = outGBuffer0.a;
-	            standardData.diffuseColor = outGBuffer0.rgb;
-	            standardData.specularColor = outGBuffer1.rgb;
-	            standardData.smoothness = outGBuffer1.a;
 					
 					GeometryBuffer buffer;
-					buffer.AlbedoColor = standardData.diffuseColor;
-					buffer.SpecularColor = standardData.specularColor;
+					buffer.AlbedoColor = outGBuffer0.rgb;
+					buffer.SpecularColor = outGBuffer1.rgb;
 					buffer.Roughness = Roughness;
 #if CLEARCOAT_LIT
 					buffer.ClearCoat_MultiScatterEnergy = multiScatter;
@@ -179,36 +280,90 @@ void frag_surf (v2f_surf IN,
 //////////////////
 //Motion Vector Pass
 //////////////////
+
+			struct tessappdata_mv
+			{
+				float4 vertex : INTERNALTESSPOS;
+				float3 normal : NORMAL;
+				float2 texcoord : TEXCOORD0;
+			};
 			struct appdata_mv
 			{
 				float4 vertex : POSITION;
-#if CUT_OFF
+				float3 normal : NORMAL;
 				float2 texcoord : TEXCOORD0;
-#endif
 			};
 			struct v2f_mv
 			{
 				float4 vertex : SV_POSITION;
+				float3 normal : NORMAL;
 #if CUT_OFF
 				float2 texcoord : TEXCOORD0;
 #endif
 				float3 nonJitterScreenPos : TEXCOORD1;
 				float3 lastScreenPos : TEXCOORD2;
 			};
+			inline tessappdata_mv tessvert_mv (appdata_mv v) {
+				tessappdata_mv o;
+				o.vertex = v.vertex;
+				o.normal = v.normal;
+				o.texcoord = v.texcoord;
+				return o;
+			}
+
+			inline UnityTessellationFactors hsconst_mv (InputPatch<tessappdata_mv,3> v) {
+				
+  			UnityTessellationFactors o;
+			   #ifdef USE_TESSELLATION
+  			float3 tf = (tessDist(v[0].vertex, v[1].vertex, v[2].vertex));
+  			float3 objCP = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos,1)).xyz;
+  			bool3 dir = 0 < float3(dot(objCP - v[0].vertex, v[0].normal), dot(objCP - v[1].vertex, v[1].normal), dot(objCP - v[2].vertex, v[2].normal));
+  			tf = (dir.x + dir.y + dir.z) ? tf : 0;
+  			o.edge[0] = tf.x;
+  			o.edge[1] = tf.y;
+  			o.edge[2] = tf.z;
+  			o.inside = (tf.x + tf.y + tf.z) * 0.33333333;
+			#else
+  				o = (UnityTessellationFactors)1;
+  			#endif
+  			return o;
+			}
+
+			[UNITY_domain("tri")]
+[UNITY_partitioning("fractional_odd")]
+[UNITY_outputtopology("triangle_cw")]
+[UNITY_patchconstantfunc("hsconst_mv")]
+[UNITY_outputcontrolpoints(3)]
+inline tessappdata_mv hs_mv (InputPatch<tessappdata_mv,3> v, uint id : SV_OutputControlPointID) {
+  return v[id];
+}
 
 			v2f_mv vert_mv (appdata_mv v)
 			{
 				v2f_mv o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
-			  float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
+			 	float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
 				o.nonJitterScreenPos = ComputeScreenPos(mul(_NonJitterVP, worldPos)).xyw;
 				float4 lastWorldPos = float4(mul(_LastFrameModel[_OffsetIndex], v.vertex), 1);
-        o.lastScreenPos = ComputeScreenPos(mul(_LastVp, lastWorldPos)).xyw;
+        		o.lastScreenPos = ComputeScreenPos(mul(_LastVp, lastWorldPos)).xyw;
 #if CUT_OFF
 				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
 #endif
 				return o;
 			}
+
+			
+[UNITY_domain("tri")]
+inline v2f_mv ds_mv (UnityTessellationFactors tessFactors, const OutputPatch<tessappdata_mv,3> vi, float3 bary : SV_DomainLocation) {
+  appdata_mv v;
+
+  v.vertex = vi[0].vertex*bary.x + vi[1].vertex*bary.y + vi[2].vertex*bary.z;
+  v.texcoord = vi[0].texcoord*bary.x + vi[1].texcoord*bary.y + vi[2].texcoord*bary.z;
+  v.normal = vi[0].normal*bary.x + vi[1].normal*bary.y + vi[2].normal*bary.z;
+  VertexOffset(v.vertex, v.normal, v.texcoord);
+  v2f_mv o = vert_mv (v);
+  return o;
+}
 
 			
 			float2 frag_mv (v2f_mv i)  : SV_TARGET
@@ -225,55 +380,10 @@ void frag_surf (v2f_surf IN,
 #endif
 
 			}
-////////////
-//Depth pass
-////////////
-struct appdata_depthPrePass
-			{
-				float4 vertex : POSITION;
-				#if CUT_OFF
-				float2 texcoord : TEXCOORD0;
-				#endif
-			};
-			struct v2f_depth
-			{
-				float4 vertex : SV_POSITION;
-				#if CUT_OFF
-				float2 texcoord : TEXCOORD0;
-				#endif
-			};
-
-			v2f_depth vert_depth (appdata_depthPrePass v)
-			{
-				v2f_depth o;
-				o.vertex = UnityObjectToClipPos(v.vertex);
-				#if CUT_OFF
-				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
-				#endif
-				return o;
-			}
-			#if CUT_OFF
-			void frag_depth (v2f_depth i)
-			#else
-			void frag_depth ()
-			#endif
-			{
-				#if CUT_OFF
-				float4 c = tex2D(_MainTex, i.texcoord);
-				clip(c.a * _Color.a - _Cutoff);
-				#endif
-			}
 /////////////
 //Shadow pass
 /////////////
 float4x4 _ShadowMapVP;
-			struct appdata_shadow
-			{
-				float4 vertex : POSITION;
-				#if CUT_OFF
-				float2 texcoord : TEXCOORD0;
-				#endif
-			};
 			struct v2f_shadow
 			{
 				float4 vertex : SV_POSITION;
@@ -285,7 +395,9 @@ float4x4 _ShadowMapVP;
 				#endif
 			};
 
-			v2f_shadow vert_shadow (appdata_shadow v)
+			
+
+			v2f_shadow vert_shadow (appdata_mv v)
 			{
 				float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
 				v2f_shadow o;
@@ -310,6 +422,52 @@ float4x4 _ShadowMapVP;
 				return distance(i.worldPos, _LightPos.xyz) / _LightPos.w;
 				#else
 				return i.vertex.z;
+				#endif
+			}
+
+
+////////////
+//Depth pass
+////////////
+
+			struct v2f_depth
+			{
+				float4 vertex : SV_POSITION;
+				#if CUT_OFF
+				float2 texcoord : TEXCOORD0;
+				#endif
+			};
+
+			v2f_depth vert_depth (appdata_mv v)
+			{
+				v2f_depth o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				#if CUT_OFF
+				o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
+				#endif
+				return o;
+			}
+			[UNITY_domain("tri")]
+inline v2f_depth ds_depth (UnityTessellationFactors tessFactors, const OutputPatch<tessappdata_mv,3> vi, float3 bary : SV_DomainLocation) {
+  appdata_mv v;
+
+  v.vertex = vi[0].vertex*bary.x + vi[1].vertex*bary.y + vi[2].vertex*bary.z;
+  v.texcoord = vi[0].texcoord*bary.x + vi[1].texcoord*bary.y + vi[2].texcoord*bary.z;
+  v.normal = vi[0].normal*bary.x + vi[1].normal*bary.y + vi[2].normal*bary.z;
+  VertexOffset(v.vertex, v.normal, v.texcoord);
+  v2f_depth o = vert_depth (v);
+  return o;
+}
+
+			#if CUT_OFF
+			void frag_depth (v2f_depth i)
+			#else
+			void frag_depth ()
+			#endif
+			{
+				#if CUT_OFF
+				float4 c = tex2D(_MainTex, i.texcoord);
+				clip(c.a * _Color.a - _Cutoff);
 				#endif
 			}
 #endif

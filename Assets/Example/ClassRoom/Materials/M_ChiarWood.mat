@@ -8,12 +8,12 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: M_ChiarWood
-  m_Shader: {fileID: 4800000, guid: f7f0d8bc677efcc44b8b3ea293d2b74f, type: 3}
+  m_Shader: {fileID: 4800000, guid: 78d7f230d7ae5ca44b8db60eed308d9e, type: 3}
   m_ShaderKeywords: DEFAULT_LIT LIT_ENABLE _USEALBEDOTEXTURE_ON _USETEXTURE_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2000
   stringTagMap: {}
   disabledShaderPasses:
   - MotionVector
@@ -121,7 +121,7 @@ Material:
     - _SpecularIntensity: 0.04
     - _SrcBlend: 1
     - _Stencil: 1
-    - _Tessellation: 2
+    - _Tessellation: 1
     - _ToggleSwitch0: 1
     - _UVSec: 0
     - _UseAlbedoTexture: 1

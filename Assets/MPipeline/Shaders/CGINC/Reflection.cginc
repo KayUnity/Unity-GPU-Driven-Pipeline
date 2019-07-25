@@ -8,7 +8,7 @@
     }
     float RoughnessToMipLevel(float rough)
     {
-        return min(UNITY_SPECCUBE_LOD_STEPS, rough * 10);
+        return rough * UNITY_SPECCUBE_LOD_STEPS;
     }
     TextureCube<float4> _ReflectionCubeMap; SamplerState sampler_ReflectionCubeMap;
     TextureCube<float4> _ReflectionCubeMap0; SamplerState sampler_ReflectionCubeMap0;
@@ -205,7 +205,7 @@ float3 CalculateReflection_Skybox(float3 viewDir, float4 specular, float4 gbuffe
     float3 normal = gbuffer1.xyz;
 	Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(specular.w, -viewDir, normal, specular.xyz);
 	float perceptualRoughness = g.roughness;
-	perceptualRoughness = perceptualRoughness * (1.7 - 0.7*perceptualRoughness);
+	perceptualRoughness = sqrt(perceptualRoughness);
 	float lod = RoughnessToMipLevel(perceptualRoughness);;
     float3 refVec = reflect(viewDir, normal);
    
