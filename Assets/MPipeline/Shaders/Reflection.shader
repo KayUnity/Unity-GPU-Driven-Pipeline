@@ -121,11 +121,13 @@ ENDCG
             float3 frag (v2f i) : SV_Target
             {
                 float3 reflect = tex2D(_CameraReflectionTexture, i.uv).xyz;
+                float4 gbuffer0 = _CameraGBufferTexture0.Sample(sampler_CameraGBufferTexture0, i.uv);
                 #if EnableGTAO
 				float2 aoro = _AOROTexture.Sample(sampler_AOROTexture, i.uv);
                 #else
                 float2 aoro = 1;
                 #endif
+                aoro = min(aoro, gbuffer0.ww);
                 #if ENABLE_SSR
                 float4 ssr = tex2D(_SSR_TemporalCurr_RT, i.uv);
                 reflect = lerp(reflect, max(0,ssr.rgb * aoro.y), saturate(ssr.a));

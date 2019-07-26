@@ -6,6 +6,7 @@
 		_ClearCoatSmoothness("Secondary Smoothness", Range(0, 1)) = 0.5
 		_Occlusion("Occlusion Scale", Range(0,1)) = 1
 		_Cutoff("Cut off", Range(0, 1)) = 0
+		_NormalIntensity("Normal Intensity", Range(-10, 10)) = 1
 		_SpecularIntensity("Specular Intensity", Range(0,1)) = 0.04
 		_MetallicIntensity("Metallic Intensity", Range(0, 1)) = 0.1
 		_MinDist("Min Tessellation Dist", float) = 20

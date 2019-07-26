@@ -210,8 +210,8 @@ float3 CalculateReflection_Skybox(float3 viewDir, float4 specular, float4 gbuffe
     float3 refVec = reflect(viewDir, normal);
    
     float3 specColor = _ReflectionCubeMap.SampleLevel(sampler_ReflectionCubeMap, refVec, lod);
-    gi = _ReflectionCubeMap.SampleLevel(sampler_ReflectionCubeMap, normal, 10) * albedo;
-    return specColor * specular.xyz;
+    gi = _ReflectionCubeMap.SampleLevel(sampler_ReflectionCubeMap, normal, 10) * albedo * aoro.x;
+    return specColor * specular.xyz * aoro.y;
 }
 
 float4 CalculateReflection_Deferred(float3 worldPos, float3 viewDir, float4 specular, float4 gbuffer1, float3 albedo, float2 aoro, samplerCUBE targetTex, int index, out float3 gi)

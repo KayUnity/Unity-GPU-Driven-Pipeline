@@ -23,6 +23,7 @@ cbuffer UnityPerMaterial
 		float _MaxDist;
 		float _Tessellation;
 		float _HeightmapIntensity;
+		float _NormalIntensity;
 }
 
 		sampler2D _BumpMap;
@@ -55,6 +56,7 @@ cbuffer UnityPerMaterial
 #else
 			o.Albedo *= _Color.rgb;
 #endif
+			o.Normal.xy *= _NormalIntensity;
 			o.Alpha = 1;
 			o.Occlusion = lerp(1, spec.b, _Occlusion);
 			o.Specular = lerp(_SpecularIntensity, o.Albedo, _MetallicIntensity * spec.g); 
@@ -68,7 +70,9 @@ cbuffer UnityPerMaterial
 
 void VertexOffset(inout float4 vertex, float3 normal, float2 uv)
 {
+	#ifdef USE_TESSELLATION
 	vertex.xyz += _HeightMap.SampleLevel(sampler_HeightMap, uv, 0) * normal * _HeightmapIntensity;
+	#endif
 }
 
 #endif

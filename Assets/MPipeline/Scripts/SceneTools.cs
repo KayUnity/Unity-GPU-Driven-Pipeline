@@ -8,6 +8,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using MPipeline;
 using Unity.Mathematics;
 using System;
+using System.IO;
 using static Unity.Mathematics.math;
 
 public class CombineMesh : ScriptableWizard
@@ -310,6 +311,35 @@ public class TransformShader : EditorWindow
                 }
             });
         }
+    }
+}
+public class TextureToSMO : ScriptableWizard
+{
+    [MenuItem("MPipeline/Generate SMO Texture")]
+    private static void CreateWizard()
+    {
+        DisplayWizard<TextureToSMO>("SMO", "Generate");
+    }
+    public Texture2D roughness;
+    public Texture2D metallic;
+    public Texture2D occlusion;
+    public string path = "Assets/Test.png";
+    public Vector2Int textureSize = new Vector2Int(1024, 1024);
+    private void OnWizardCreate()
+    {
+        Material mat = new Material(Shader.Find("Hidden/ToSMO"));
+        RenderTexture rt = RenderTexture.GetTemporary(textureSize.x, textureSize.y, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        mat.SetTexture("_RoughnessTexture", roughness);
+        mat.SetTexture("_MetallicTexture", metallic);
+        mat.SetTexture("_OcclusionTexture", occlusion);
+        Graphics.Blit(null, rt, mat, 0);
+        Texture2D tex = new Texture2D(textureSize.x, textureSize.y, TextureFormat.RGBA32, false, true);
+        RenderTexture.active = rt;
+        tex.ReadPixels(new Rect(0, 0, textureSize.x, textureSize.y), 0, 0);
+        File.WriteAllBytes(path, tex.EncodeToPNG());
+        RenderTexture.ReleaseTemporary(rt);
+        DestroyImmediate(mat);
+        DestroyImmediate(tex);
     }
 }
 #endif
