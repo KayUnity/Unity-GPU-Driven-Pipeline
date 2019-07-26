@@ -23,6 +23,8 @@
 		_EmissionColor("Emission Color", Color) = (0,0,0,1)
 		[NoScaleOffset]_EmissionMap("Emission Map", 2D) = "white"{}
 		[HideInInspector]_LightingModel("lm", Int) = 1
+		[HideInInspector]_ZTest("zt", Int) = 0
+		[HideInInspector]_ZWrite("zw", Int) = 0
 	}
 	SubShader {
 		Tags { "RenderType"="Opaque" }
@@ -65,8 +67,8 @@ pass
 	}
 Name "GBuffer"
 Tags {"LightMode" = "GBuffer" "Name" = "GBuffer"}
-ZTest Equal
-ZWrite off
+ZTest [_ZTest]
+ZWrite [_ZWrite]
 Cull back
 CGPROGRAM
 #pragma multi_compile __ LIT_ENABLE
@@ -128,9 +130,7 @@ ENDCG
 			Cull back
 			Tags {"LightMode" = "Depth"}
 			CGPROGRAM
-			#pragma vertex tessvert_mv
-			#pragma hull hs_mv
-			#pragma domain ds_depth
+			#pragma vertex vert_depth
 			#pragma fragment frag_depth
 			// Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
 			#pragma exclude_renderers gles

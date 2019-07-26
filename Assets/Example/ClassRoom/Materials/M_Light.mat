@@ -90,6 +90,7 @@ Material:
     - _MetallicIntensity: 0.1
     - _MinDist: 20
     - _Mode: 0
+    - _NormalIntensity: 1
     - _Occlusion: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.02
@@ -100,9 +101,9 @@ Material:
     - _Stencil: 0
     - _Tessellation: 1
     - _UVSec: 0
-    - _ZTest: 2
+    - _ZTest: 3
     - _ZTestWay: 4
-    - _ZWrite: 1
+    - _ZWrite: 0
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 1.5660378, g: 1.0222743, b: 0.68698823, a: 1}

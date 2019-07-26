@@ -17,6 +17,7 @@ Material:
   stringTagMap: {}
   disabledShaderPasses:
   - MotionVector
+  - Depth
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -99,7 +100,7 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 1
     - _GlossyReflections: 1
-    - _HeightmapIntensity: 0.006666667
+    - _HeightmapIntensity: 0.01
     - _Index: 0
     - _LightingModel: 1
     - _MaxDist: 1095.8

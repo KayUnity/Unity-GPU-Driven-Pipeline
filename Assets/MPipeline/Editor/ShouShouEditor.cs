@@ -87,6 +87,19 @@ public class ShouShouEditor : ShaderGUI
             targetMat.EnableKeyword("CUT_OFF");
             targetMat.renderQueue = 2451;
         }
+        if (targetUseTessellation)
+        {
+            targetMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Less);
+            targetMat.SetInt("_ZWrite", 1);
+            targetMat.SetShaderPassEnabled("Depth", false);
+        }
+        else
+        {
+            targetMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Equal);
+            targetMat.SetInt("_ZWrite", 0);
+            targetMat.SetShaderPassEnabled("Depth", true);
+        }
+
         if (targetUseDecal)
         {
             targetMat.EnableKeyword("USE_DECAL");
